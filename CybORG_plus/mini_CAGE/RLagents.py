@@ -1,11 +1,12 @@
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import ProgressBarCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 from .test_agent import Base_agent
 import torch
 import numpy as np
 
 class BlueRLAgent():
-    def __init__(self, env, model_path=None):
+    def __init__(self, env, model_path=None, verbose=1):
         """
         Initialize the RL agent.
         :param env: The environment to train the agent.
@@ -15,11 +16,11 @@ class BlueRLAgent():
         if model_path:
             self.model = PPO.load(model_path)
         else:
-            self.model = PPO("MlpPolicy", self.env, verbose=1)
+            self.model = PPO("MlpPolicy", self.env, verbose=verbose)
 
     def train(self, timesteps=100):
         """Train the RL agent."""
-        self.model.learn(total_timesteps=timesteps)
+        self.model.learn(total_timesteps=timesteps, callback=ProgressBarCallback())
 
 
     def get_action(self, observation, action_mask=None):

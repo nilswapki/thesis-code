@@ -23,21 +23,21 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    None,
+    "configs/envs/keytodoor.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    None,
+    "configs/rl/dqn_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/mlp_default.py",
+    "configs/seq_models/lru_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -114,6 +114,7 @@ def main(argv):
     # start training
     learner = LearnerRegular(env, eval_env, FLAGS, config_rl, config_seq, config_env)
     learner.train()
+
 
 if __name__ == "__main__":
     app.run(main)

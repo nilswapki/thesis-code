@@ -619,6 +619,7 @@ def update_blue(
 
     # if valid actions remain
     if np.any(action_filter):
+        action_valid = True
         
         # extract the host and action type
         # displace as first actions are all subnet related
@@ -779,8 +780,12 @@ def update_blue(
                 impact_copy[np.arange(len(host)), host] = 0
                 new_impacted[valid] = impact_copy
                 success[valid] = 1
+    # if action is invalid
+    else:
+        action_valid = False
 
-    return next_state, action_reward, new_decoys, new_processes, success, decoy_reset, new_impacted, femitter_placed
+
+    return next_state, action_reward, new_decoys, new_processes, success, decoy_reset, new_impacted, femitter_placed, action_valid
 
 
 
@@ -907,7 +912,7 @@ class SimplifiedCAGE(gym.Env):
 
         # modify the state based on the actions
         # 1.0s over 10_000
-        true_state, reward = self._process_actions(
+        true_state, reward, action_valid = self._process_actions(
             self.state, red_action, blue_action, self.subnets)
         self.state = true_state.copy()
 
@@ -924,6 +929,7 @@ class SimplifiedCAGE(gym.Env):
             red_action=red_action, blue_action=blue_action)
         self.proc_states = next_state
         info = self._get_info()
+        info['valid'] = action_valid
 
         return next_state, reward, done, info
         
@@ -976,7 +982,7 @@ class SimplifiedCAGE(gym.Env):
 
         # now perform blue update
         # perform the blue action first
-        true_state, blue_reward, decoys, proc, success, decoy_reset, impacted, femitter_placed = update_blue(
+        true_state, blue_reward, decoys, proc, success, decoy_reset, impacted, femitter_placed, action_valid = update_blue(
             state=state, updated_state=true_state, 
             action=blue_action, 
             decoys=self.current_decoys, 
@@ -1002,7 +1008,7 @@ class SimplifiedCAGE(gym.Env):
         # impact action should also influence blue but negatively
         blue_reward -= red_reward
 
-        return true_state, {'Blue': blue_reward, 'Red': red_reward}
+        return true_state, {'Blue': blue_reward, 'Red': red_reward}, action_valid
 
 
     def _process_reward(self, state, action_reward, impacted):
