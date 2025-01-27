@@ -101,6 +101,9 @@ class RAMEfficient_SeqReplayBuffer:
             >= 2
         )
 
+        observations = np.squeeze(observations, axis=-1)
+        next_observations = np.squeeze(next_observations, axis=-1)
+
         seq_len = observations.shape[0]  # L
         indices = list(
             np.arange(self._top, self._top + seq_len) % self._max_replay_buffer_size

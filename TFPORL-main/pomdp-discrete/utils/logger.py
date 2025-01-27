@@ -445,7 +445,14 @@ def configure(dir, format_strs=LOG_OUTPUT_FORMATS, log_suffix="", precision=4):
     assert isinstance(dir, str)
     os.makedirs(dir, exist_ok=True)
 
-    output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
+    log_suffix_train = '_train'
+    log_suffix_eval = '_eval'
 
-    Logger.CURRENT = Logger(dir=dir, output_formats=output_formats, precision=precision)
-    log("*" * 10, "\nLogging to %s" % dir, "\n" + "*" * 10)
+    output_formats_train = [make_output_format(f, dir, log_suffix_train) for f in format_strs]
+    output_formats_eval = [make_output_format(f, dir, log_suffix_eval) for f in format_strs]
+
+    Logger.TRAIN = Logger(dir=dir, output_formats=output_formats_train, precision=precision)
+    Logger.EVAL = Logger(dir=dir, output_formats=output_formats_eval, precision=precision)
+
+    Logger.CURRENT = Logger.TRAIN
+    #log("*" * 10, "\nLogging to %s" % dir, "\n" + "*" * 10)

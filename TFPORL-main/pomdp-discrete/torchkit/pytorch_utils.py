@@ -111,7 +111,8 @@ def gpu_enabled():
 
 # noinspection PyPep8Naming
 def FloatTensor(*args, **kwargs):
-    return torch.FloatTensor(*args, **kwargs).to(device)
+    data = np.array(args)
+    return torch.FloatTensor(data, **kwargs).to(device)
 
 
 def from_numpy(*args, **kwargs):

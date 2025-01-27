@@ -83,6 +83,7 @@ class ModelFreeOffPolicy_Separate_RNN(nn.Module):
     ):
         prev_action = prev_action.unsqueeze(0)  # (1, B, dim)
         reward = reward.unsqueeze(0)  # (1, B, 1)
+        obs = obs.permute(1, 0) # CHANGED: switch dimensions due to dimension matching error
         obs = obs.unsqueeze(0)  # (1, B, dim)
 
         current_action, current_internal_state = self.actor.act(

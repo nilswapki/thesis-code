@@ -9,7 +9,7 @@ def get_config():
     config.is_markov = False
     config.is_attn = False
 
-    config.sampled_seq_len = 1
+    config.sampled_seq_len = 2
 
     # fed into Module
     config.model = ConfigDict()

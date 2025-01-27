@@ -29,7 +29,7 @@ if __name__ == '__main__':
     blue_action_log = []
     total_reward = np.zeros(num_envs)
 
-    blue_agent.train(timesteps=100000)
+    blue_agent.train(timesteps=3000)
 
     """
     for i in range(100):

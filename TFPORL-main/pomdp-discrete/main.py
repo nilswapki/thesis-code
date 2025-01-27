@@ -23,21 +23,21 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/keytodoor.py",
+    "configs/envs/mini-cage.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/dqn_default.py",
+    "configs/rl/sacd_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/lru_default.py",
+    "configs/seq_models/lstm_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -51,11 +51,11 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_integer("seed", 42, "Random seed.")
+flags.DEFINE_integer("seed", 41, "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 1000, "Number of episodes during training.")
-flags.DEFINE_float("updates_per_step", 0.25, "Gradient updates per step.")
-flags.DEFINE_integer("start_training", 10, "Number of episodes to start training.")
+flags.DEFINE_integer("train_episodes", 50, "Number of episodes during training.")
+flags.DEFINE_float("updates_per_step", 1.0, "Gradient updates per step.")
+flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")
 
 # logging settings
 flags.DEFINE_boolean("debug", False, "debug mode")
@@ -101,6 +101,7 @@ def main(argv):
         format_strs.extend(["stdout", "log"])  # logger.log
 
     log_path = os.path.join(FLAGS.save_dir, run_name)
+    FLAGS.log_dir = log_path
     logger.configure(dir=log_path, format_strs=format_strs)
 
     # write flags to a txt
@@ -112,9 +113,25 @@ def main(argv):
         pickle.dump(FLAGS.flag_values_dict(), f)
 
     # start training
-    learner = LearnerRegular(env, eval_env, FLAGS, config_rl, config_seq, config_env)
+    learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
     learner.train()
 
 
 if __name__ == "__main__":
+    """
+    print("CUDA available:", torch.cuda.is_available())
+    print("MPS available:", torch.backends.mps.is_available())
+    import tensorflow as tf
+    print("GPU devices:", tf.config.list_physical_devices('GPU'))
+
+    # Check that MPS is available
+    if not torch.backends.mps.is_available():
+        if not torch.backends.mps.is_built():
+            print("MPS not available because the current PyTorch install was not "
+                  "built with MPS enabled.")
+        else:
+            print("MPS not available because the current MacOS version is not 12.3+ "
+                  "and/or you do not have an MPS-enabled device on this machine.")
+    """
+
     app.run(main)

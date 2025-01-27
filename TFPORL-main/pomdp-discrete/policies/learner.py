@@ -174,7 +174,8 @@ class Learner:
             train_stats = self.update(
                 int(self._n_env_steps_total * self.FLAGS.updates_per_step)
             )
-            self.log_train_stats(train_stats)
+            #self.log_train_stats(train_stats)
+            #self.log_training()
 
         last_eval_num_iters = 0
         while self._n_env_steps_total < self.n_env_steps_total:
@@ -184,7 +185,8 @@ class Learner:
             train_stats = self.update(
                 int(math.ceil(self.FLAGS.updates_per_step * env_steps))
             )  # NOTE: ceil to make sure at least 1 step
-            self.log_train_stats(train_stats)
+
+            #self.log_train_stats(train_stats)
 
             # evaluate and log
             current_num_iters = self._n_env_steps_total // (
@@ -195,7 +197,7 @@ class Learner:
                 and current_num_iters % self.config_env.eval_interval == 0
             ):
                 last_eval_num_iters = current_num_iters
-                perf, trajs = self.log()
+                perf, trajs = self.log_eval()
                 if (
                     self.config_env.save_interval > 0
                     and self._n_env_steps_total > 0.75 * self.n_env_steps_total
@@ -215,9 +217,11 @@ class Learner:
         for idx in range(num_rollouts):
             steps = 0
 
-            obs = ptu.from_numpy(self.train_env.reset())  # reset
-            obs = obs.reshape(1, obs.shape[-1])
+            obs, _ = self.train_env.reset()
+            obs = ptu.from_numpy(obs)  # reset
+            #obs = obs.reshape(1, obs.shape[-1])
             done_rollout = False
+            valid_list = []  # tracks if an action was valid or not
 
             if self.agent_arch in [AGENT_ARCHS.Memory, AGENT_ARCHS.Memory_Markov]:
                 # temporary storage
@@ -272,6 +276,8 @@ class Learner:
                 term = self.config_env.terminal_fn(self.train_env, done_rollout, info)
 
                 # add data to policy buffer
+                valid_list.append(info['valid'])
+
                 if self.agent_arch == AGENT_ARCHS.Markov:
                     self.policy_storage.add_sample(
                         observation=ptu.get_numpy(obs.squeeze(dim=0)),
@@ -305,17 +311,27 @@ class Learner:
                     )  # (L, 1)
 
                 self.policy_storage.add_episode(
-                    observations=ptu.get_numpy(torch.cat(obs_list, dim=0)),  # (L, dim)
+                    observations=ptu.get_numpy(torch.stack(obs_list, dim=0)),  # (L, dim)
                     actions=ptu.get_numpy(act_buffer),  # (L, dim)
                     rewards=ptu.get_numpy(torch.cat(rew_list, dim=0)),  # (L, dim)
                     terminals=np.array(term_list).reshape(-1, 1),  # (L, 1)
                     next_observations=ptu.get_numpy(
-                        torch.cat(next_obs_list, dim=0)
+                        torch.stack(next_obs_list, dim=0)
                     ),  # (L, dim)
                 )
-                # print(
-                #     f"steps: {steps} term: {term} ret: {torch.cat(rew_list, dim=0).sum().item():.2f}"
-                # )
+
+            total_reward = torch.cat(rew_list, dim=0).sum().item()
+            invalid_actions = (1 - np.mean(valid_list))
+
+            # print and log
+            print(
+                f"Episode: {self._n_rollouts_total} --- "
+                f"Steps: {steps} --- "
+                f"Reward: {total_reward:.2f} --- "
+                f"Invalid Actions: {invalid_actions:.2f}"
+            )
+            self.log_training(reward=total_reward, success=False, total_steps=steps, invalid_actions=invalid_actions)
+
             self._n_env_steps_total += steps
             self._n_rollouts_total += 1
         return self._n_env_steps_total - before_env_steps
@@ -351,7 +367,7 @@ class Learner:
     @torch.no_grad()
     def evaluate(self, deterministic=True):
         self.agent.eval()  # set to eval mode for deterministic dropout
-
+        print("Evaluating")
         returns_per_episode = np.zeros(self.config_env.eval_episodes)
         success_rate = np.zeros(self.config_env.eval_episodes)
         total_steps = np.zeros(self.config_env.eval_episodes)
@@ -362,8 +378,11 @@ class Learner:
             running_reward = 0.0
             done_rollout = False
 
-            obs = ptu.from_numpy(self.eval_env.reset())  # reset
-            obs = obs.reshape(1, obs.shape[-1])
+            #obs_old = ptu.from_numpy(self.eval_env.reset())  # reset
+            #obs_old = obs.reshape(1, obs.shape[-1])
+
+            obs, _ = self.eval_env.reset()
+            obs = ptu.from_numpy(obs)  # reset
 
             if self.agent_arch == AGENT_ARCHS.Memory:
                 # assume initial reward = 0.0
@@ -425,17 +444,39 @@ class Learner:
                 logger.record_tabular(k, v)
         logger.dump_tabular()
 
-    def log(self):
+
+    def log_training(self, reward, success, total_steps, invalid_actions):
+
+        logger.Logger.CURRENT = logger.Logger.TRAIN
+
+        logger.record_step("env_steps", self._n_env_steps_total)
+        logger.record_tabular("return", reward)
+        logger.record_tabular("invalid_actions", invalid_actions)
+        logger.record_tabular("length", total_steps)
+        logger.record_tabular("FPS",
+            (self._n_env_steps_total - self._n_env_steps_total_last)
+            / (time.time() - self._start_time_last))
+        logger.record_tabular("time", (time.time() - self._start_time_last))
+
+        self._n_env_steps_total_last = self._n_env_steps_total
+        self._start_time_last = time.time()
+
+        logger.dump_tabular()
+
+
+    def log_eval(self):
+        logger.Logger.CURRENT = logger.Logger.EVAL
+
         logger.record_step("env_steps", self._n_env_steps_total)
         returns_eval, success_rate_eval, total_steps_eval, trajs = self.evaluate()
         logger.record_tabular("return", np.mean(returns_eval))
         logger.record_tabular("success", np.mean(success_rate_eval))
         logger.record_tabular("length", np.mean(total_steps_eval))
-        logger.record_tabular(
-            "FPS",
+        logger.record_tabular("FPS",
             (self._n_env_steps_total - self._n_env_steps_total_last)
-            / (time.time() - self._start_time_last),
-        )
+            / (time.time() - self._start_time_last))
+        logger.record_tabular("time", (time.time() - self._start_time_last))
+
         self._n_env_steps_total_last = self._n_env_steps_total
         self._start_time_last = time.time()
 
