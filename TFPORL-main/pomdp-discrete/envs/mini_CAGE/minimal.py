@@ -783,7 +783,7 @@ def update_blue(
     # if action is invalid
     else:
         action_valid = False
-        action_reward = np.array([[-0.1]]) # TODO: why this ndarray(1,1) structure?
+        action_reward = np.array([[-0.1]])  # TODO: why this ndarray(1,1) structure?
 
 
     return next_state, action_reward, new_decoys, new_processes, success, decoy_reset, new_impacted, femitter_placed, action_valid
@@ -1329,6 +1329,65 @@ class SimplifiedCAGE(gym.Env):
 
     def get_action_space(self, agent=None):
         return self.num_nodes*4
+
+
+    def describe_action_blue(self, action, num_hosts=len(HOSTS)):
+        """
+        Given a discrete action, prints the corresponding action type and target host.
+
+        Parameters:
+            action (int): The action number (0 to 53).
+            num_hosts (int): The number of hosts in the environment.
+        """
+        action = action.item()
+        if action == 0:
+            print("Blue Action: Do nothing (sleep)")
+            return
+
+        # Compute the host and action type
+        host = (action - 1) % num_hosts
+        action_type = (action - 1) // num_hosts
+
+        # Map action types to descriptions
+        action_map = {
+            0: "Analyse host",
+            1: "Place decoy on host",
+            2: "Remove host",
+            3: "Restore host"
+        }
+
+        # Get the action description
+        action_description = action_map.get(action_type, "Unknown action")
+
+        print(f"Blue Action: {action_description} on host {host}")
+
+
+
+    def describe_action_red(self, action, num_subnets=NUM_SUBNETS, num_hosts=len(HOSTS)):
+        action = action.item()  # Extract scalar action value
+
+        if action == 0:
+            print("Red Action: Do nothing (sleep)")
+            return
+
+        if action <= num_subnets:
+            print(f"Red Action: Scan subnet {int(action - 1)}")
+            return
+
+        # Adjust action index since subnet actions are first
+        host = int((action - (num_subnets + 1)) % num_hosts)
+        action_type = (action - (num_subnets + 1)) // num_hosts
+
+        action_map = {
+            0: "Scan host",
+            1: "Exploit user access",
+            2: "Escalate to privileged access",
+            3: "Impact host"
+        }
+
+        action_description = action_map.get(action_type, "Unknown action")
+        print(f"Red Action: {action_description} on host {host}")
+
 
 
         

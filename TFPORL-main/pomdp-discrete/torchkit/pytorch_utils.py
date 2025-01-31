@@ -102,7 +102,12 @@ def set_gpu_mode(mode, gpu_id=0):
     global _gpu_id
     _gpu_id = gpu_id
     _use_gpu = mode
-    device = torch.device(f"cuda:{gpu_id}" if _use_gpu else "cpu")
+
+    # Check if MPS is available on Mac M1
+    if torch.backends.mps.is_available():
+        device = torch.device("mps" if _use_gpu else "cpu")
+    else:
+        device = torch.device(f"cuda:{gpu_id}" if _use_gpu else "cpu")
 
 
 def gpu_enabled():

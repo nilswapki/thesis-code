@@ -12,7 +12,7 @@ def create_fn(config: ConfigDict) -> Tuple[ConfigDict, str]:
     register(
         env_name,
         entry_point="envs.mini_CAGE.SimplifiedCAGEWrapper:SimplifiedCAGEWrapper",
-        max_episode_steps=length + 1,  # NOTE: has to define it here
+        max_episode_steps=length,  # NOTE: has to define it here
     )
 
     del config.create_fn

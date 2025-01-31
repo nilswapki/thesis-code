@@ -299,6 +299,42 @@ class Restore_decoys(React_restore_minimal):
         return action.reshape(-1, 1).astype(int)
 
 
+# TODO: Check if this actually works as intended
+class AdaptiveDefender(Base_agent):
+    '''
+    Adaptive Defender for CybORG Cage 2 (miniCage version).
+    Prioritizes restoring high-value hosts and adapts to repeated attacks.
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reset()
+
+    def reset(self, *args, **kwargs):
+        self.num_hosts = 13
+        self.threat_levels = np.zeros(self.num_hosts)
+
+    def get_action(self, observation, *args, **kwargs):
+        batch_size = observation.shape[0]
+        host_info = observation[:, :4 * self.num_hosts].reshape(-1, self.num_hosts, 4)
+
+        # Identify compromised hosts (privileged access or exploited)
+        compromised_hosts = (host_info[:, :, 1] == 1) | (host_info[:, :, -1] == 1)
+
+        # Update threat levels (increment if compromised, decay over time)
+        self.threat_levels = np.maximum(self.threat_levels * 0.9, compromised_hosts.sum(axis=0))
+
+        # Choose the most critical host to restore
+        actions = np.zeros(batch_size)
+        for i in range(batch_size):
+            if np.any(compromised_hosts[i]):
+                target_host = np.argmax(self.threat_levels)
+                actions[i] = target_host + 40  # Assuming 40+ corresponds to restore actions
+                self.threat_levels[target_host] = 0  # Reset after restoration
+
+        return actions.reshape(-1, 1).astype(int)
+
+
 if __name__ == '__main__':
         
     from .minimal import SimplifiedCAGE
