@@ -15,8 +15,8 @@ def get_config():
     config.algo = "sacd"
 
     config.actor_lr = 3e-4
-    config.critic_lr = 3e-4
-    config.temp_lr = 3e-4
+    config.critic_lr = 2e-4
+    config.temp_lr = 6e-4
 
     config.config_actor = ConfigDict()
     config.config_actor.hidden_dims = (256, 256)
@@ -25,13 +25,13 @@ def get_config():
     config.config_critic.hidden_dims = (256, 256)
 
     config.discount = 0.99
-    config.tau = 0.005
+    config.tau = 0.002
 
-    config.init_temperature = 0.1
-    config.update_temperature = False
+    config.init_temperature = 1.0
+    config.update_temperature = True
     config.target_entropy = None
 
-    config.replay_buffer_size = 1e6
-    config.replay_buffer_num_episodes = 1e3
+    config.replay_buffer_size = 1e5
+    config.replay_buffer_num_episodes = 5e3
 
     return config

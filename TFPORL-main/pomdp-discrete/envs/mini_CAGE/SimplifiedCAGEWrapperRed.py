@@ -2,10 +2,10 @@ import gymnasium as gym
 from gym import spaces
 import numpy as np
 from .minimal import SimplifiedCAGE
-from .test_agent import React_restore_minimal
+from .test_agent import React_restore_minimal, AdaptiveDefender
 
 
-class SimplifiedCAGEWrapper(gym.Env):
+class SimplifiedCAGEWrapperRed(gym.Env):
     def __init__(self, num_envs=1, num_nodes=13, remove_bugs=False, blue_agents=None, episode_length=100, verbose=False):
         super().__init__()
         self.env = SimplifiedCAGE(num_envs, num_nodes, remove_bugs)
@@ -24,10 +24,10 @@ class SimplifiedCAGEWrapper(gym.Env):
 
         self.current_blue_agent_index = 0
         # Define the action space for BLUE agent
-        self.action_space = spaces.Discrete(self.env.NUM_SUBNETS+len(self.env.HOSTS)*len(self.env.RED_ACTIONS[2:])+1)
+        self.action_space = spaces.Discrete(self.env.num_subnets+self.env.num_hosts*len(self.env.red_actions[2:])+1)
 
         # Define the observation space based on the environment's state
-        self.observation_space = spaces.Box(-1.0, 1.0, shape=((num_nodes*3)+1,), dtype=np.float32)
+        self.observation_space = spaces.Box(-1.0, 1.0, shape=((self.env.num_nodes*3)+1,), dtype=np.float32)
 
     def reset(self, seed=None, options=None):
 
@@ -41,7 +41,7 @@ class SimplifiedCAGEWrapper(gym.Env):
         return np.array(state['Red']).reshape(-1, 1), info
         #return {'state': state, 'info': info}, {}
 
-    def step(self, blue_action):
+    def step(self, red_action):
         self.steps_taken += 1
         # Parse red and blue actions
         blue_action = self.blue_agent.get_action(observation=self.env._process_state(self.env.state, self.env.current_decoys)['Blue'])

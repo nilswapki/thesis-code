@@ -101,8 +101,13 @@ class RAMEfficient_SeqReplayBuffer:
             >= 2
         )
 
-        observations = np.squeeze(observations, axis=-1)
-        next_observations = np.squeeze(next_observations, axis=-1)
+        # CHANGED: squeeze the last dim if there are too many
+        if observations.shape == (observations.shape[0], observations.shape[1], 1):
+            observations = np.squeeze(observations, axis=-1)
+        if next_observations.shape == (next_observations.shape[0], next_observations.shape[1], 1):
+            next_observations = np.squeeze(next_observations, axis=-1)
+        if actions.shape == (actions.shape[0], actions.shape[1], 1):
+            actions = np.squeeze(actions, axis=-1)
 
         seq_len = observations.shape[0]  # L
         indices = list(

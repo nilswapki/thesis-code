@@ -30,14 +30,14 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/sacd_default.py",
+    "configs/rl/dqn_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/mlp_default.py",
+    "configs/seq_models/lstm_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -53,7 +53,7 @@ flags.DEFINE_boolean(
 # training settings
 flags.DEFINE_integer("seed", 41, "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 50, "Number of episodes during training.")
+flags.DEFINE_integer("train_episodes", 500, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 1.0, "Gradient updates per step.")
 flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")
 
@@ -82,7 +82,9 @@ def main(argv):
     torch.set_num_threads(1)
     np.set_printoptions(precision=3, suppress=True)
     torch.set_printoptions(precision=3, sci_mode=False)
-    set_gpu_mode((torch.cuda.is_available()))  # or torch.backends.mps.is_available()
+
+    #set_gpu_mode((torch.cuda.is_available()))
+    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available()))
 
     ## now only use env and time as directory name
     run_name = f"{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/"

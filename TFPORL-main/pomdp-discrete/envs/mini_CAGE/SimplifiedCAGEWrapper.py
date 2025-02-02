@@ -6,7 +6,7 @@ from .test_agent import Meander_minimal
 
 
 class SimplifiedCAGEWrapper(gym.Env):
-    def __init__(self, num_envs=1, num_nodes=13, remove_bugs=False, red_agent=None, episode_length=100, verbose=False):
+    def __init__(self, num_envs=1, num_nodes=13, remove_bugs=True, red_agent=None, episode_length=100, verbose=True):
         super().__init__()
         self.env = SimplifiedCAGE(num_envs, num_nodes, remove_bugs)
         self.num_envs = num_envs
@@ -26,6 +26,7 @@ class SimplifiedCAGEWrapper(gym.Env):
         self.action_space = spaces.Discrete((4 * num_nodes) + 1)
 
         # Define the observation space based on the environment's state
+        # 2n scan activity, 2n host safety, n prior scans, n decoy info --> 6n
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(num_nodes*6,), dtype=np.float32)
 
     def reset(self, seed=None, options=None):

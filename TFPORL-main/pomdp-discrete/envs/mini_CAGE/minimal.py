@@ -362,6 +362,8 @@ def update_red(state, action, subnet_loc, processes, impacted, femitter_placed, 
     # if valid actions remain
     if np.any(action_filter):
 
+        action_valid = True
+
         # extract the host and action type
         # displace as first actions are all subnet related
         host_alloc = ((action-(NUM_SUBNETS+1)) % len(HOSTS)).reshape(-1).astype(int)
@@ -556,7 +558,12 @@ def update_red(state, action, subnet_loc, processes, impacted, femitter_placed, 
                 impact_copy[np.arange(len(host)), host] = 1
                 new_impacted[valid] = impact_copy
 
-    return next_state, action_reward, success, new_impacted, selected_exploit_idx
+    else:
+        action_reward = np.array([[-0.1]])
+        action_valid = False
+        # print('Invalid Red Action')
+
+    return next_state, action_reward, success, new_impacted, selected_exploit_idx, action_valid
 
 
 def check_blue_action(observation, decoys):
@@ -802,6 +809,11 @@ class SimplifiedCAGE(gym.Env):
         self.num_nodes = num_nodes
         self.remove_bugs = remove_bugs
 
+        self.num_subnets = NUM_SUBNETS
+        self.num_hosts = len(HOSTS)
+        self.red_actions = RED_ACTIONS
+        self.blue_actions = BLUE_ACTIONS
+
         # map integer in host_alloc[valid] exes to action name
         self.action_mapping = action_mapping()
 
@@ -913,7 +925,7 @@ class SimplifiedCAGE(gym.Env):
 
         # modify the state based on the actions
         # 1.0s over 10_000
-        true_state, reward, action_valid = self._process_actions(
+        true_state, reward, action_valid_blue, action_valid_red = self._process_actions(
             self.state, red_action, blue_action, self.subnets)
         self.state = true_state.copy()
 
@@ -930,7 +942,8 @@ class SimplifiedCAGE(gym.Env):
             red_action=red_action, blue_action=blue_action)
         self.proc_states = next_state
         info = self._get_info()
-        info['valid'] = action_valid
+        info['valid_blue'] = action_valid_blue
+        info['valid_red'] = action_valid_red
 
         return next_state, reward, done, info
         
@@ -967,7 +980,7 @@ class SimplifiedCAGE(gym.Env):
 
         # get next state and corresponding reward
         # add probability of failure
-        true_state, red_reward, success, impacted, selected_exploit = update_red(
+        true_state, red_reward, success, impacted, selected_exploit, action_valid_red = update_red(
             state=state, action=red_action, subnet_loc=subnets, 
             processes=self.current_processes, 
             impacted=self.impacted,
@@ -983,7 +996,7 @@ class SimplifiedCAGE(gym.Env):
 
         # now perform blue update
         # perform the blue action first
-        true_state, blue_reward, decoys, proc, success, decoy_reset, impacted, femitter_placed, action_valid = update_blue(
+        true_state, blue_reward, decoys, proc, success, decoy_reset, impacted, femitter_placed, action_valid_blue = update_blue(
             state=state, updated_state=true_state, 
             action=blue_action, 
             decoys=self.current_decoys, 
@@ -1009,7 +1022,7 @@ class SimplifiedCAGE(gym.Env):
         # impact action should also influence blue but negatively
         blue_reward -= red_reward
 
-        return true_state, {'Blue': blue_reward, 'Red': red_reward}, action_valid
+        return true_state, {'Blue': blue_reward, 'Red': red_reward}, action_valid_blue, action_valid_red
 
 
     def _process_reward(self, state, action_reward, impacted):
@@ -1309,6 +1322,9 @@ class SimplifiedCAGE(gym.Env):
         obs_state = {
             'Red': red_state, 'Blue': blue_state
         }
+
+        # for debugging:
+        # explainable_state = state.reshape(-1, self.num_nodes, 3)
 
         return obs_state
 

@@ -221,7 +221,8 @@ class Learner:
             obs = ptu.from_numpy(obs)  # reset
             #obs = obs.reshape(1, obs.shape[-1])
             done_rollout = False
-            valid_list = []  # tracks if an action was valid or not
+            valid_list_blue = []  # tracks if an action was valid or not
+            valid_list_red = []  # tracks if an action was valid or not
 
             if self.agent_arch in [AGENT_ARCHS.Memory, AGENT_ARCHS.Memory_Markov]:
                 # temporary storage
@@ -276,7 +277,8 @@ class Learner:
                 term = self.config_env.terminal_fn(self.train_env, done_rollout, info)
 
                 # add data to policy buffer
-                valid_list.append(info['valid'])
+                valid_list_blue.append(info['valid_blue'])
+                valid_list_red.append(info['valid_red'])
 
                 if self.agent_arch == AGENT_ARCHS.Markov:
                     self.policy_storage.add_sample(
@@ -321,16 +323,19 @@ class Learner:
                 )
 
             total_reward = torch.cat(rew_list, dim=0).sum().item()
-            invalid_actions = (1 - np.mean(valid_list))
+            invalid_actions_blue = (1 - np.mean(valid_list_blue))
+            invalid_actions_red = (1 - np.mean(valid_list_red))
 
             # print and log
             print(
-                f"Episode: {self._n_rollouts_total} --- "
-                f"Steps: {steps} --- "
-                f"Reward: {total_reward:.2f} --- "
-                f"Invalid Actions: {invalid_actions:.2f}"
+                f"Episode: {self._n_rollouts_total:03d} --- "
+                f"Steps: {steps:03d} --- "
+                f"Reward: {total_reward:05.2f} --- "
+                f"Invalid Actions Blue: {invalid_actions_blue:04.2f} --- "
+                f"Invalid Actions Red: {invalid_actions_red:04.2f}"
             )
-            self.log_training(reward=total_reward, success=False, total_steps=steps, invalid_actions=invalid_actions)
+            self.log_training(reward=total_reward, success=False, total_steps=steps,
+                              invalid_actions_blue=invalid_actions_blue, invalid_actions_red=invalid_actions_red)
 
             self._n_env_steps_total += steps
             self._n_rollouts_total += 1
@@ -445,13 +450,14 @@ class Learner:
         logger.dump_tabular()
 
 
-    def log_training(self, reward, success, total_steps, invalid_actions):
+    def log_training(self, reward, success, total_steps, invalid_actions_blue, invalid_actions_red):
 
         logger.Logger.CURRENT = logger.Logger.TRAIN
 
         logger.record_step("env_steps", self._n_env_steps_total)
         logger.record_tabular("return", reward)
-        logger.record_tabular("invalid_actions", invalid_actions)
+        logger.record_tabular("invalid_actions_blue", invalid_actions_blue)
+        logger.record_tabular("invalid_actions_red", invalid_actions_red)
         logger.record_tabular("length", total_steps)
         logger.record_tabular("FPS",
             (self._n_env_steps_total - self._n_env_steps_total_last)
