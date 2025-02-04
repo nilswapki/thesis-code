@@ -30,7 +30,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/dqn_default.py",
+    "configs/rl/ppo_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
