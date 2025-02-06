@@ -28,7 +28,7 @@ def get_config():
 
     config.clip_param = 0.2
     config.mini_batch_size = 64
-    config.entropy_coef = 0.01
+    config.entropy_coef = 0.1
     config.normalize_advantage = True
     config.target_kl = None
     config.max_grad_norm = 0.5

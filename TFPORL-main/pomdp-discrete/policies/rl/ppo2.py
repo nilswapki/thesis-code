@@ -14,7 +14,8 @@ class PPO2(RLAlgorithmBase):
     def __init__(self, clip_param=0.2, entropy_coef=0.01, batch_size=64, normalize_advantage=True, target_kl=None, max_grad_norm=0.5, **kwargs):
         super().__init__(**kwargs)
         self.clip_param = clip_param
-        self.learning_rate = kwargs.get("learning_rate", 3e-4)
+        # self.critic_learning_rate = kwargs.get("critic_lr", 3e-4)
+        # self.actor_learning_rate = kwargs.get("actor_lr", 3e-4)
         self.entropy_coef = entropy_coef
         self.batch_size = batch_size
         self.normalize_advantage = normalize_advantage
@@ -26,9 +27,13 @@ class PPO2(RLAlgorithmBase):
         return FlattenMlp(input_size=input_size, output_size=action_dim, hidden_sizes=hidden_sizes)
 
     @staticmethod
-    def build_critic(input_size, hidden_sizes, **kwargs) -> Tuple[Any, Any]:
-        critic = FlattenMlp(input_size=input_size, output_size=1, hidden_sizes=hidden_sizes)
-        return critic, critic  # PPO usually uses a single critic, but returning two for consistency
+    def build_critic(hidden_sizes, input_size=None, obs_dim=None, action_dim=None) -> Tuple[Any, Any]:
+        assert action_dim is not None
+        if obs_dim is not None:
+            input_size = obs_dim
+        critic = FlattenMlp(input_size=input_size, output_size=action_dim, hidden_sizes=hidden_sizes)
+        critic2 = FlattenMlp(input_size=input_size, output_size=action_dim, hidden_sizes=hidden_sizes)
+        return critic, critic2  # PPO usually uses a single critic, but returning two for consistency
 
     def select_action(self, actor, observ, deterministic: bool) -> Any:
         action_logits = actor(observ)
@@ -115,7 +120,14 @@ class PPO2(RLAlgorithmBase):
         _, log_probs = actor(prev_actions=actions, rewards=rewards, observs=observs)
 
         with torch.no_grad():
-            value_pred = critic(prev_actions=actions, rewards=rewards, observs=observs, current_actions=None)[0].squeeze(-1)
+            q_values = critic(prev_actions=actions, rewards=rewards, observs=observs, current_actions=None)[0]
+
+            # Convert one-hot actions to action indices (shape: [3, 64])
+            action_indices = actions.argmax(dim=-1)
+
+            # Select the Q-value corresponding to the chosen action (shape: [3, 64])
+            value_pred = q_values.gather(dim=-1, index=action_indices.unsqueeze(-1)).squeeze(-1)
+
             advantage = rewards.squeeze(-1) - value_pred
 
         ratio = torch.exp(log_probs - log_probs.detach())  # PPO ratio calculation
