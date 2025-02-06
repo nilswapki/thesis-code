@@ -6,17 +6,20 @@ from torchkit.networks import FlattenMlp
 from policies.models.actor import MarkovPolicyBase
 from typing import Any, Tuple
 
-
-class PPO(RLAlgorithmBase):
-    name = "ppo"
+class PPO2(RLAlgorithmBase):
+    name = "ppo2"
     continuous_action = False
     use_target_actor = False
 
-    def __init__(self, clip_param=0.2, entropy_coef=0.01, **kwargs):
+    def __init__(self, clip_param=0.2, entropy_coef=0.01, batch_size=64, normalize_advantage=True, target_kl=None, max_grad_norm=0.5, **kwargs):
         super().__init__(**kwargs)
         self.clip_param = clip_param
         self.learning_rate = kwargs.get("learning_rate", 3e-4)
         self.entropy_coef = entropy_coef
+        self.batch_size = batch_size
+        self.normalize_advantage = normalize_advantage
+        self.target_kl = target_kl
+        self.max_grad_norm = max_grad_norm
 
     @staticmethod
     def build_actor(input_size, action_dim, hidden_sizes) -> MarkovPolicyBase:

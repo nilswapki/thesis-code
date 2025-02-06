@@ -6,7 +6,7 @@ from .test_agent import Meander_minimal
 
 
 class SimplifiedCAGEWrapper(gym.Env):
-    def __init__(self, num_envs=1, num_nodes=13, remove_bugs=True, red_agent=None, episode_length=100, verbose=True):
+    def __init__(self, num_envs=1, num_nodes=13, remove_bugs=True, red_agent=None, episode_length=100, verbose=False):
         super().__init__()
         self.env = SimplifiedCAGE(num_envs, num_nodes, remove_bugs)
         self.num_envs = num_envs
