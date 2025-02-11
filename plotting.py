@@ -14,7 +14,7 @@ def plot_reward(data, window_size=10):
         window_size (int): Size of the sliding window for smoothing.
     """
     # Extract the reward column (r) from the dataframe
-    rewards = data['r']
+    rewards = data['return']
 
     # Calculate the moving average for smoothing
     smoothed_rewards = rewards.rolling(window=window_size, min_periods=1).mean()
@@ -34,10 +34,7 @@ def plot_reward(data, window_size=10):
     plt.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     plt.gca().set_facecolor('whitesmoke')
 
-    # Save the figure and show
-    plt.savefig('reward_plot_smoothing.png')
-    plt.show()
-
+    return plt.gcf()
 
 def plot_invalid_share(data, window_size=10):
     """
@@ -74,8 +71,27 @@ def plot_invalid_share(data, window_size=10):
 
 
 if __name__ == '__main__':
-    data = pd.read_csv('results/run-2025-01-17_14-45-17.monitor.csv', comment='#')
+    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/'
+    file_path = '100/lstm/2025-02-10-11:02:10+24168-24168'
 
-    plot_reward(data, window_size=50)
-    plot_invalid_share(data, window_size=50)
+    data = pd.read_csv(base_path + file_path + '/progress_train.csv', comment='#')
+
+    reward_fig = plot_reward(data, window_size=50)
+
+    # Save the figure and show
+    flags_path = base_path + file_path + '/flags.txt'
+    with open(flags_path, 'r') as f:
+        flags_content = f.read()
+
+        # Extract n_nodes, extra_edge_prob, and num_critical_nodes from flags.txt
+        import re
+        n_nodes = re.search(r'n_nodes:\s*(\d+)', flags_content).group(1)
+        extra_edge_prob = re.search(r'extra_edge_prob:\s*([\d.]+)', flags_content).group(1)
+        num_critical_nodes = re.search(r'num_critical_nodes:\s*(\d+)', flags_content).group(1)
+
+        file_info = f"{file_path.replace('/', '_').replace(':', '-')}_n{n_nodes}_e{extra_edge_prob}_c{num_critical_nodes}_{file_path.split('/')[-2]}"
+        plt.savefig(f'z_plots/reward_plot_smoothing_{file_info}.png')
+
+
+    #plot_invalid_share(data, window_size=50)
 

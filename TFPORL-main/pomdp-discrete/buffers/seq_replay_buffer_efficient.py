@@ -99,7 +99,7 @@ class RAMEfficient_SeqReplayBuffer:
             == terminals.shape[0]
             == next_observations.shape[0]
             >= 2
-        )
+        ), f"Shape mismatch or sequence length < 2: obs={observations.shape}, act={actions.shape}, rew={rewards.shape}, term={terminals.shape}, next_obs={next_observations.shape}"
 
         # CHANGED: squeeze the last dim if there are too many
         if observations.shape == (observations.shape[0], observations.shape[1], 1):

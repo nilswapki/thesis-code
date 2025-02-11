@@ -2,7 +2,7 @@
 import numpy as np
 import gymnasium as gym
 
-
+topology = 'small'
 #############################################################
 # TODO: need to make compatible with different architectures
 #############################################################
@@ -13,99 +13,197 @@ import gymnasium as gym
 RED_ACTIONS = ['sleep', 'remote', 'network', 'exploit', 'escalate', 'impact']
 BLUE_ACTIONS = ['sleep', 'analyse', 'decoy', 'remove', 'restore']
 
-# specify network configuration
-NUM_SUBNETS = 3
-HOSTS = ['def', 'ent0', 'ent1', 'ent2', 'ophost0', 
-    'ophost1', 'ophost2', 'opserv', 'user0', 'user1', 'user2', 'user3', 'user4']
 
-# which hosts are connected
-CONNECTED_HOSTS = [
-    None, None, None, 'opserv', None, None, 
-    None, None, None, 'ent1', 'ent1', 'ent0', 'ent0']
+if topology == 'small':
 
-# what services are already running on the machines
-# -> highlights the exploit they correspond to
-HOST_EXPLOITS = [
-    
-    # ent
-    ['Brute'],
-    ['Brute'],
-    ['Brute', 'Eternal', 'Keep', 'HTTPRFI', 'HTTPSRFI'],
-    ['Brute', 'Eternal', 'Keep', 'HTTPRFI', 'HTTPSRFI'],
+    # specify network configuration
+    NUM_SUBNETS = 3
+    HOSTS = ['def',
+             'ent0', 'ent1', 'ent2',
+             'ophost0', 'ophost1', 'ophost2', 'opserv',
+             'user0', 'user1', 'user2', 'user3', 'user4']
 
-    # op
-    ['Brute'],
-    ['Brute'],
-    ['Brute'],
-    ['Brute'],
+    # which hosts are connected
+    CONNECTED_HOSTS = [
+        None,
+        None, None, 'opserv',
+        None, None, None, None,
+        None, 'ent1', 'ent1', 'ent0', 'ent0']
 
-    ##############################################
-    # BUG: user3 is meant to possess SQL exploit, 
-    # but is in fact replace by bluekeep
-    ##############################################
+    # what services are already running on the machines
+    # -> highlights the exploit they correspond to
+    HOST_EXPLOITS = [
 
-    # user
-    [], 
-    ['Brute', 'FTP'],
-    ['Eternal', 'Keep'],
-    ['Keep', 'HTTPSRFI', 'HTTPRFI', 'Haraka'],
-    ['Keep', 'HTTPSRFI', 'HTTPRFI', 'Haraka', 'SQL']
-]
+        # ent
+        ['Brute'],
+        ['Brute'],
+        ['Brute', 'Eternal', 'Keep', 'HTTPRFI', 'HTTPSRFI'],
+        ['Brute', 'Eternal', 'Keep', 'HTTPRFI', 'HTTPSRFI'],
 
-# only some user exploits are rewarded
-# this highlights the exploits which are
-REWARDED_EXPLOITS = [
+        # op
+        ['Brute'],
+        ['Brute'],
+        ['Brute'],
+        ['Brute'],
 
-    # ent
-    [],
-    [],
-    ['Keep', 'Eternal'],
-    ['Keep', 'Eternal'],
+        ##############################################
+        # BUG: user3 is meant to possess SQL exploit,
+        # but is in fact replace by bluekeep
+        ##############################################
 
-    # op
-    [],
-    [],
-    [],
-    [],
+        # user
+        [],
+        ['Brute', 'FTP'],
+        ['Eternal', 'Keep'],
+        ['Keep', 'HTTPSRFI', 'HTTPRFI', 'Haraka'],
+        ['Keep', 'HTTPSRFI', 'HTTPRFI', 'Haraka', 'SQL']
+    ]
 
-    # user
-    [],
-    ['FTP'],
-    ['Eternal'],
-    ['Keep', 'Haraka'],
-    ['SQL', 'Haraka']
+    # only some user exploits are rewarded
+    # this highlights the exploits which are
+    REWARDED_EXPLOITS = [
 
-]
+        # ent
+        [],
+        [],
+        ['Keep', 'Eternal'],
+        ['Keep', 'Eternal'],
 
-# what decoy options are available for each host
-# ordered based on the Cardiff implementation
-HOST_DECOYS = [
+        # op
+        [],
+        [],
+        [],
+        [],
 
-    # ent
-    ['Haraka', 'Tomcat', 'Apache', 'Vsftpd'],
-    ['Haraka', 'Tomcat', 'Vsftpd', 'Apache'],
-    ['Femitter'],
-    ['Femitter'],
+        # user
+        [],
+        ['FTP'],
+        ['Eternal'],
+        ['Keep', 'Haraka'],
+        ['SQL', 'Haraka']
 
-    # op
-    [],
-    [],
-    [],
-    ['Haraka', 'Apache', 'Tomcat', 'Vsftpd'], 
+    ]
 
-    # user
-    [],
-    ['Apache', 'Tomcat', 'SMSS', 'Svchost'],
-    ['Femitter', 'Tomcat', 'Apache', 'SSHD'],
-    ['Vsftpd', 'SSHD'],
-    ['Vsftpd']
-]
+    # what decoy options are available for each host
+    # ordered based on the Cardiff implementation
+    HOST_DECOYS = [
+
+        # ent
+        ['Haraka', 'Tomcat', 'Apache', 'Vsftpd'],
+        ['Haraka', 'Tomcat', 'Vsftpd', 'Apache'],
+        ['Femitter'],
+        ['Femitter'],
+
+        # op
+        [],
+        [],
+        [],
+        ['Haraka', 'Apache', 'Tomcat', 'Vsftpd'],
+
+        # user
+        [],
+        ['Apache', 'Tomcat', 'SMSS', 'Svchost'],
+        ['Femitter', 'Tomcat', 'Apache', 'SSHD'],
+        ['Vsftpd', 'SSHD'],
+        ['Vsftpd']
+    ]
 
 
-# list all the decoy and exploit options
-# ranked in order of priority (high to low)
-EXPLOITS = ['FTP', 'Haraka', 'SQL', 'HTTPSRFI', 'HTTPRFI', 'Eternal', 'Keep', 'Brute'] 
-DECOYS = ['Femitter', 'Vsftpd', 'Apache', 'Haraka', 'SSHD', 'SMSS', 'Tomcat', 'Svchost']
+    # list all the decoy and exploit options
+    # ranked in order of priority (high to low)
+    EXPLOITS = ['FTP', 'Haraka', 'SQL', 'HTTPSRFI', 'HTTPRFI', 'Eternal', 'Keep', 'Brute']
+    DECOYS = ['Femitter', 'Vsftpd', 'Apache', 'Haraka', 'SSHD', 'SMSS', 'Tomcat', 'Svchost']
+
+
+# ---------------------------------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------------------- #
+
+
+elif topology == 'large':
+
+    # Increase the number of subnets
+    NUM_SUBNETS = 8
+
+    # Define 44 hosts, spreading them across 8 subnets
+    HOSTS = [
+        'def', 'ent0', 'ent1', 'ent2', 'ent3', 'ent4', 'ent5', 'ent6',  # Enterprise
+        'ophost0', 'ophost1', 'ophost2', 'ophost3', 'opserv',  # Operational
+        'user0', 'user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9',  # User Group 1
+        'user10', 'user11', 'user12', 'user13', 'user14', 'user15', 'user16', 'user17', 'user18', 'user19',  # User Group 2
+        'user20', 'user21', 'user22',  # User Group 3
+        'db1', 'db2', 'db3',  # Database Servers
+        'web1', 'web2', 'web3',  # Web Servers
+        'backup1', 'backup2'  # Backup Servers
+    ]
+
+    # Define network connections
+    CONNECTED_HOSTS = [
+        None, None, None, None, None, None, 'ophost0', 'opsthost1',  # Enterprise
+        'opserv', 'opserv', 'opserv', 'opserv', None,  # Operational
+        'user0', None, None, None, None, None, 'user10', 'user11', 'user15', 'user16',  # User Group 0
+        'web1', 'web2', 'db1', 'db2', 'db3', None, None, None, None, None,  # User Group 2
+        'ent0', 'ent6', None,  # User Group 3
+        'backup1', 'backup2', 'opserv',  # Database Servers
+        None, None, None,  # Web Servers
+        None, None  # Backup Servers
+    ]
+
+    # Assign exploits to each host (for diversity)
+    HOST_EXPLOITS = [
+        ['Brute'], ['Brute'], ['Brute', 'Eternal'], ['Brute', 'Eternal'],
+        ['Brute', 'Eternal', 'Keep', 'SQL'], ['Brute'], ['Eternal'], ['Keep'],  # Enterprise
+
+        ['Brute'], ['Brute'], ['Brute'], ['Brute'], ['Keep', 'SQL'],  # Operational
+
+        [], ['Brute', 'FTP'], ['Eternal', 'Keep'], ['Keep', 'HTTPSRFI'],
+        ['Keep', 'SQL'], ['SQL'], ['Keep'], ['HTTPRFI'], ['HTTPSRFI'], ['Brute'],  # Users 1
+        ['Keep'], ['SQL'], ['FTP'], ['Brute'], ['SQL'], ['HTTPRFI'], ['HTTPSRFI'], ['Keep'], ['Eternal'], ['Brute'],
+        # Users 2
+        ['Keep'], ['SQL'], ['Eternal'],  # Users 3
+
+        ['SQL', 'Keep'], ['SQL', 'Brute'], ['SQL', 'Keep'],  # Databases
+
+        ['HTTPRFI', 'HTTPSRFI', 'SQL'], ['HTTPRFI', 'SQL'], ['HTTPSRFI', 'SQL'],  # Web servers
+
+        [], []  # Backup (no direct threats)
+    ]
+
+    REWARDED_EXPLOITS = [
+        ['Brute'], ['Brute'], ['Brute', 'Eternal'], ['Brute', 'Eternal'],  # Enterprise
+        ['Brute', 'Eternal', 'Keep', 'SQL'], ['Brute'], ['Eternal'], ['Keep'],
+
+        ['Brute'], ['Brute'], ['Brute'], ['Brute'], ['Brute'],  # Operational
+
+        [], ['FTP'], ['Eternal'], ['Keep', 'HTTPSRFI'],
+        ['Keep', 'SQL'], ['SQL'], ['Keep'], ['HTTPRFI'], ['HTTPSRFI'], ['Brute'],  # Users 1
+        ['Keep'], ['SQL'], ['FTP'], ['Brute'], ['SQL'], ['HTTPRFI'], ['HTTPSRFI'], ['Keep'],
+        ['Eternal'], ['Brute'],  # Users 2
+        ['Keep'], ['SQL'], ['Eternal'],  # Users 3
+
+        ['SQL'], ['SQL'], ['SQL'],  # Databases
+
+        ['Brute'], ['Brute'], ['SQL'],  # Web servers
+
+        [], []  # Backup
+    ]
+
+    # Define deception techniques
+    HOST_DECOYS = [
+        ['Haraka', 'Tomcat', 'Apache', 'Vsftpd'], ['Haraka', 'Tomcat', 'Vsftpd', 'Apache'],
+        ['Femitter'], ['Femitter'], ['Haraka'], ['Tomcat'], ['Apache'], ['SSHD'],  # Enterprise
+        [], [], [], [], ['Haraka', 'Apache', 'Tomcat', 'Vsftpd'],  # Operational
+        [], ['Apache', 'Tomcat', 'SMSS', 'Svchost'], ['Femitter', 'Tomcat', 'Apache', 'SSHD'],
+        ['Vsftpd', 'SSHD'], ['Vsftpd'], ['Tomcat'], ['Apache'], ['Haraka'],
+        ['Apache'], ['Tomcat'], ['Apache'], ['SSHD'], ['Tomcat'], ['Apache'], ['Tomcat'], ['SSHD'],
+        ['Vsftpd'], ['Tomcat'], ['Apache'], ['SSHD'], ['Vsftpd'], ['Apache'], ['Tomcat'], ['SSHD'],
+        ['Vsftpd'], ['SSHD'], ['Apache'], ['Haraka'], ['SSHD'], ['Haraka'], ['SSHD'], ['Tomcat']
+    ]
+
+    # Define all exploits and decoys
+    EXPLOITS = ['FTP', 'Haraka', 'SQL', 'HTTPSRFI', 'HTTPRFI', 'Eternal', 'Keep', 'Brute']
+    DECOYS = ['Femitter', 'Vsftpd', 'Apache', 'Haraka', 'SSHD', 'SMSS', 'Tomcat', 'Svchost']
+
+
 
 def exploits_to_decoys(remove_bugs):
     '''Give an exploit index and return the compatible decoys.'''
@@ -480,7 +578,7 @@ def update_red(state, action, subnet_loc, processes, impacted, femitter_placed, 
                 ######################################
                 # BUG: bluekeep always fails on user3
                 ######################################
-                if (not remove_bug):
+                if not remove_bug:
                     blue_u3 = np.zeros((valid.shape[0])).astype(bool)
                     blue_u3[valid] = np.invert(np.logical_and(
                         selected_idx == 6, host == 11))
@@ -802,17 +900,16 @@ class SimplifiedCAGE(gym.Env):
     A simplified version of the CAGE 2 Challenge environment 
     with faster execution speed and parallelism.
     '''
-    def __init__(self, num_envs, num_nodes=13, remove_bugs=False):
+    def __init__(self, num_envs, remove_bugs=False):
 
         # basic parameters
         self.num_envs = num_envs
-        self.num_nodes = num_nodes
-        self.remove_bugs = remove_bugs
-
+        self.num_nodes = len(HOSTS)
         self.num_subnets = NUM_SUBNETS
-        self.num_hosts = len(HOSTS)
         self.red_actions = RED_ACTIONS
         self.blue_actions = BLUE_ACTIONS
+
+        self.remove_bugs = remove_bugs
 
         # map integer in host_alloc[valid] exes to action name
         self.action_mapping = action_mapping()
@@ -861,7 +958,7 @@ class SimplifiedCAGE(gym.Env):
 
         # keep track of exploitable process and available decoys
         # legit process are marked as 1, decoys are -1
-        # decoys are numbered  by priority for highest to lowest
+        # decoys are numbered by priority from highest to lowest
         self.current_processes = current_processes
         if current_processes is None:
             self.current_processes = np.tile(
@@ -1250,7 +1347,7 @@ class SimplifiedCAGE(gym.Env):
                 safety_copy[np.arange(len(host)), host] = np.array([0, 1])
                 safety_info[exploit] = safety_copy
 
-        # determine consequnces of blue actions
+        # determine consequences of blue actions
         if blue_action is not None:
             
             # extract the host action is applied to
@@ -1343,17 +1440,16 @@ class SimplifiedCAGE(gym.Env):
             decoys=current_decoys, state=state, impacted=impacted,
             current_processes=current_processes, detection=detection)
 
-    def get_action_space(self, agent=None):
+    def get_action_space(self):
         return self.num_nodes*4
 
 
-    def describe_action_blue(self, action, num_hosts=len(HOSTS)):
+    def describe_action_blue(self, action):
         """
         Given a discrete action, prints the corresponding action type and target host.
 
         Parameters:
             action (int): The action number (0 to 53).
-            num_hosts (int): The number of hosts in the environment.
         """
         action = action.item()
         if action == 0:
@@ -1361,8 +1457,8 @@ class SimplifiedCAGE(gym.Env):
             return
 
         # Compute the host and action type
-        host = (action - 1) % num_hosts
-        action_type = (action - 1) // num_hosts
+        host = (action - 1) % self.num_nodes
+        action_type = (action - 1) // self.num_nodes
 
         # Map action types to descriptions
         action_map = {
@@ -1379,20 +1475,20 @@ class SimplifiedCAGE(gym.Env):
 
 
 
-    def describe_action_red(self, action, num_subnets=NUM_SUBNETS, num_hosts=len(HOSTS)):
+    def describe_action_red(self, action):
         action = action.item()  # Extract scalar action value
 
         if action == 0:
             print("Red Action: Do nothing (sleep)")
             return
 
-        if action <= num_subnets:
+        if action <= NUM_SUBNETS:
             print(f"Red Action: Scan subnet {int(action - 1)}")
             return
 
         # Adjust action index since subnet actions are first
-        host = int((action - (num_subnets + 1)) % num_hosts)
-        action_type = (action - (num_subnets + 1)) // num_hosts
+        host = int((action - (NUM_SUBNETS + 1)) % self.num_nodes)
+        action_type = (action - (NUM_SUBNETS + 1)) // self.num_nodes
 
         action_map = {
             0: "Scan host",

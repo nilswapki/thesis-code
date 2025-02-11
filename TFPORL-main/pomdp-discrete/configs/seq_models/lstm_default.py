@@ -22,7 +22,7 @@ def get_config():
     # seq_model specific
     config.model.seq_model_config = ConfigDict()
     config.model.seq_model_config.name = "lstm"
-    config.model.seq_model_config.hidden_size = 128
+    config.model.seq_model_config.hidden_size = 64
     config.model.seq_model_config.n_layer = 1
 
     # embedders

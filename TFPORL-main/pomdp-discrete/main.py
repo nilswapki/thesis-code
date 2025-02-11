@@ -23,7 +23,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/mini-cage.py",
+    "configs/envs/network-defender.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
@@ -37,7 +37,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/mlp_default.py",
+    "configs/seq_models/lstm_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -83,8 +83,9 @@ def main(argv):
     np.set_printoptions(precision=3, suppress=True)
     torch.set_printoptions(precision=3, sci_mode=False)
 
-    set_gpu_mode((torch.cuda.is_available()))
-    #set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available()))
+    #set_gpu_mode((torch.cuda.is_available()))
+    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available())
+                 and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
 
     ## now only use env and time as directory name
     run_name = f"{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/"
