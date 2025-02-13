@@ -117,8 +117,8 @@ class HumanOutputFormat(KVWriter, SeqWriter):
             valwidth = max(map(len, key2str.values()))
 
         # Write out the data
-        now = datetime.datetime.now(dateutil.tz.tzlocal())
-        timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f %Z")
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
         dashes = "-" * (keywidth + valwidth + 7)
         dashes_time = put_in_middle(dashes, timestamp)

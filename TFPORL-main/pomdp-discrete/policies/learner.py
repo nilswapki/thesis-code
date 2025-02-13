@@ -218,13 +218,17 @@ class Learner:
             steps = 0
 
             obs, _ = self.train_env.reset()
-            obs = ptu.from_numpy(obs)  # reset
-            if self.train_env.name == "network-defender":
-                obs = obs.reshape(obs.shape[-1], 1)
+            obs = ptu.from_numpy(obs).reshape(-1, 1) if obs.shape[0] == 1 else ptu.from_numpy(obs)  # reset
+            #if self.train_env.name == "network-defender":
+            #    obs = obs.reshape(obs.shape[-1], 1)
             done_rollout = False
 
+            # for mini-cage
             valid_list_blue = []  # tracks if an action was valid or not
             valid_list_red = []  # tracks if an action was valid or not
+
+            # for network-defender
+            restorations = 0  # tracks if a node was restored or not
 
             if self.agent_arch in [AGENT_ARCHS.Memory, AGENT_ARCHS.Memory_Markov]:
                 # temporary storage
@@ -282,6 +286,8 @@ class Learner:
                     # add data to policy buffer
                     valid_list_blue.append(info['valid_blue'])
                     valid_list_red.append(info['valid_red'])
+                elif self.train_env.name == "network-defender":
+                    restorations += info['restored']
 
                 if self.agent_arch == AGENT_ARCHS.Markov:
                     self.policy_storage.add_sample(
@@ -340,17 +346,18 @@ class Learner:
                     f"Invalid Actions Blue: {invalid_actions_blue:04.2f} --- "
                     f"Invalid Actions Red: {invalid_actions_red:04.2f}"
                 )
-            else:
+            elif self.train_env.name == "network-defender":
                 print(
                     f"Episode: {self._n_rollouts_total:03d} --- "
                     f"Steps: {steps:03d} --- "
-                    f"Reward: {total_reward:05.2f} --- ")
+                    f"Reward: {total_reward:05.2f} --- "
+                    f"Restorations: {restorations:02d}")
 
             if self.train_env.name == 'mini-cage':
                 self.log_training(reward=total_reward, success=False, total_steps=steps,
                                   invalid_actions_blue=invalid_actions_blue, invalid_actions_red=invalid_actions_red)
-            else:
-                self.log_training(reward=total_reward, success=False, total_steps=steps)
+            elif self.train_env.name == 'network-defender':
+                self.log_training(reward=total_reward, success=False, total_steps=steps, restorations=restorations)
 
             self._n_env_steps_total += steps
             self._n_rollouts_total += 1
@@ -465,7 +472,7 @@ class Learner:
         logger.dump_tabular()
 
 
-    def log_training(self, reward, success, total_steps, invalid_actions_blue=None, invalid_actions_red=None):
+    def log_training(self, reward, success, total_steps, invalid_actions_blue=None, invalid_actions_red=None, restorations=None):
 
         logger.Logger.CURRENT = logger.Logger.TRAIN
 
@@ -475,6 +482,9 @@ class Learner:
         if self.train_env.name == "mini-cage":
             logger.record_tabular("invalid_actions_blue", invalid_actions_blue)
             logger.record_tabular("invalid_actions_red", invalid_actions_red)
+        elif self.train_env.name == "network-defender":
+            logger.record_tabular("restorations", restorations)
+
         logger.record_tabular("length", total_steps)
         logger.record_tabular("FPS",
             (self._n_env_steps_total - self._n_env_steps_total_last)

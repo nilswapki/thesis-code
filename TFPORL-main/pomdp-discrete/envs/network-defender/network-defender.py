@@ -58,7 +58,7 @@ class NetworkDefenderEnv(gym.Env):
 
         # Action space: A tuple (action_type, node_index)
         self.action_space = spaces.Discrete(2*self.n_nodes)  # 1:n_nodes for analyzing, n_nodes+1:2*n_nodes for restoring
-
+        #TODO: disconnect / reconnect ? sensor / indirect information
         self.reset()
 
     def seed(self, seed=None):
@@ -175,13 +175,7 @@ class NetworkDefenderEnv(gym.Env):
 
         # Process defender action first:
         if action_type == 0:  # Analyze node
-            # When analyzing a node, update analysis info:
-            if node == self.attacker_node:
-                # If the node is currently compromised, record the current timestep.
-                self.analysis = self.attacker_infiltration_time[node]
-            else:
-                # If not compromised, mark as analyzed clean (0).
-                self.analysis = 0
+            self.analysis = self.attacker_infiltration_time[node]
 
         elif action_type == 1:  # restore node
             if not self.timestep == 1:  # prevent episode from ending on first timestep (error in learner logic)
@@ -194,39 +188,40 @@ class NetworkDefenderEnv(gym.Env):
                     # Restoration has a penalty.
                     self.reward -= 10
 
-        # Compute penalty for the attacker's current infiltration:
-        # Negative reward for every timestep that the attacker occupies a node.
-        # Larger penalty if the node is critical.
-        if self.attacker_node in self.critical_nodes:
-            self.reward -= 5
-        else:
-            self.reward -= 1
+        # Negative reward for each timestep
+        self.reward -= 1
 
         # Attacker movement strategy
         current_neighbors = self.neighbors[self.attacker_node]
 
         if current_neighbors:
-            # If the attacker is at a critical node, move to the next critical node.
-            if self.attacker_node in self.critical_nodes:
-                #print("Attacker on Node ", self.attacker_node)
-                self.current_critical_node_index = (self.current_critical_node_index + 1) % len(self.critical_nodes)
+            if random.random() < 0.1:
+                # With 10% probability, move randomly.
+                self.attacker_node = random.choice(current_neighbors)
 
-            # Choose the move that minimizes the distance to the next critical node.
-            best_move = min(current_neighbors, key=lambda n: nx.shortest_path_length(
-                self.graph, n, self.critical_nodes[self.current_critical_node_index]))
+            else:
+                # If the attacker is at a critical node, move to the next critical node.
+                if self.attacker_node in self.critical_nodes:
+                    #print("Attacker on Node ", self.attacker_node)
+                    self.current_critical_node_index = (self.current_critical_node_index + 1) % len(self.critical_nodes)
 
-            # Move attacker
-            self.attacker_node = best_move
+                # Choose the move that minimizes the distance to the next critical node.
+                self.attacker_node = min(current_neighbors, key=lambda n: nx.shortest_path_length(
+                    self.graph, n, self.critical_nodes[self.current_critical_node_index]))
+
 
             # Record infiltration time
             self.attacker_infiltration_time[self.attacker_node] = self.timestep
+
+        else:
+            raise RuntimeError("Attacker is unable to move. Something is wrong with the graph.")
 
         # End episode if maximum steps reached.
         if self.timestep >= self.episode_length:
             self.done = True
 
         obs = self._get_obs()
-        info = {"attacker_node": self.attacker_node}
+        info = {"attacker_node": self.attacker_node, "restored": action_type == 1}
         return obs, self.reward, self.done, info
 
     def render(self, mode='human'):

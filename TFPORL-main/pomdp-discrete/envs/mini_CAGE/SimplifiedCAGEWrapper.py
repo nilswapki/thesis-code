@@ -8,6 +8,7 @@ from .baseline_agents import Meander_minimal
 class SimplifiedCAGEWrapper(gym.Env):
     def __init__(self, num_envs=1, remove_bugs=True, red_agent=None, episode_length=100, verbose=False):
         super().__init__()
+        self.name = 'mini-cage'
         self.env = SimplifiedCAGE(num_envs, remove_bugs)
         self.num_envs = num_envs
         self.verbose = verbose

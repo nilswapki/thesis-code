@@ -37,7 +37,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/lstm_default.py",
+    "configs/seq_models/mlp_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -51,7 +51,7 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_integer("seed", 41, "Random seed.")
+flags.DEFINE_integer("seed", 40, "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
 flags.DEFINE_integer("train_episodes", 500, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
@@ -94,7 +94,7 @@ def main(argv):
     config_rl, _ = config_rl.name_fn(
         config_rl, env.max_episode_steps, max_training_steps
     )
-    uid = f"{system.now_str()}+{jobid}-{pid}"
+    uid = f"{system.now_str()}"  # +{jobid}-{pid}
     run_name += uid
     FLAGS.run_name = uid
 
