@@ -43,8 +43,9 @@ class NetworkDefenderEnv(gym.Env):
 
 
         ### Global node statuses:
-        # infiltration: binary flag for each node, 1 if infiltrated (by attacker), 0 otherwise.
+        # infiltration: flag for each node, >=1 if infiltrated (by attacker), 0 otherwise.
         self.infiltrated = np.zeros(self.n_nodes, dtype=np.int32)
+        self.passively_infiltrated = []
         # Sensor readings
         self.sensor_reading = np.zeros(self.n_nodes, dtype=np.float32)
 
@@ -55,7 +56,7 @@ class NetworkDefenderEnv(gym.Env):
         # Define action space:
         # Fixed-size discrete action space.
         # Actions: Do nothing or Restore.
-        self.action_space = spaces.Discrete(1+self.n_nodes)
+        self.action_space = spaces.Discrete(self.n_nodes+1)
 
         self.timestep = 0
         self.done = False
@@ -95,7 +96,7 @@ class NetworkDefenderEnv(gym.Env):
         A noise term is added to the reading
         """
         self.sensor_reading = self.infiltrated / 10.0
-        self.sensor_reading[self.initial_attacker_node] = 0
+        self.sensor_reading[self.initial_attacker_node] = 0  # the initial foothold does not express any suspicion
         self.sensor_reading += np.random.normal(self.noise_mean, self.noise_std, size=self.n_nodes)
         self.sensor_reading = np.clip(self.sensor_reading, 0.0, 1.0)
 
@@ -116,6 +117,7 @@ class NetworkDefenderEnv(gym.Env):
         self.initial_attacker_node = np.random.randint(0, self.n_nodes)
 
         self.infiltrated[self.initial_attacker_node] = 1
+        self.passively_infiltrated = []
 
         return self._get_obs(), {}
 
@@ -133,22 +135,29 @@ class NetworkDefenderEnv(gym.Env):
         restore_necessary = 0
 
         # Defender actions:
-        # 0: No-op.
-        # 1: Restore current node.
-        if action > 0:
+        # 0:n_nodes-1: Restore node
+        # n_nodes: Do nothing
+        if action != self.n_nodes:
             # Restore the node indicated
-            if (action-1) != self.initial_attacker_node:  # cannot restore the initial foothold of the attacker
-                if self.infiltrated[action - 1] > 0:
-                    restore_necessary = 1
-                    reward += 100
-                self.infiltrated[action-1] = 0
-                reward -= 5
+            if (action != self.initial_attacker_node) and (self.infiltrated[action] > 0): # cannot restore the initial foothold of the attacker
+                self.infiltrated[action] = 0
+                #reward += 10
+            else:
+                reward -= 10
+                restore_necessary = 1
 
-                # check for every infiltrated node if there still is a path to the initial foothold, if not, restore it
-                for node in range(self.n_nodes):
-                    if self.infiltrated[node] > 0:
-                        if not nx.has_path(self.graph, node, self.initial_attacker_node):
-                            self.infiltrated[node] = 0
+
+            # check for every infiltrated node if there still is a path to the initial foothold, if not, restore it
+            for node in range(self.n_nodes):
+                if self.infiltrated[node] > 0:
+                    # if infiltrated node is cut off from the other infiltrated nodes, restore it
+                    if not nx.has_path(self.graph.subgraph(np.where(self.infiltrated > 0)[0]), node, self.initial_attacker_node):
+                        # reset the node
+                        self.infiltrated[node] = 0
+                        # add the node to a list of passively infiltrated nodes (attacker still has knowledge)
+                        self.passively_infiltrated.append(node)
+
+
 
         # Attacker movement:
         # only move every third step
@@ -160,12 +169,20 @@ class NetworkDefenderEnv(gym.Env):
                     adj_nodes.extend(self.neighbors[node])
             # check for duplicates and remove already infiltrated nodes
             adj_nodes = list(set(adj_nodes) - set(np.where(self.infiltrated > 0)[0]))
+
+            # infiltrate all nodes that are passively infiltrated and are neighbor to an infiltrated node
+            for node in self.passively_infiltrated:
+                if node in adj_nodes:
+                    #print("Reinfiltrating Node:", node)
+                    self.infiltrated[node] = 1
+                    self.passively_infiltrated.remove(node)
+
             # pick random node from adj_nodes, if possible
             if len(adj_nodes) > 0:
                 self.infiltrated[random.choice(adj_nodes)] = 1
 
         # reward is the negative sum of all infiltrated nodes
-        reward -= np.sum(self.infiltrated > 0)
+        reward -= (np.sum(self.infiltrated > 0) - 1)  # dont give negative reward for initial foothold
 
         # End episode if maximum timesteps reached.
         if self.timestep >= self.episode_length:
@@ -194,7 +211,7 @@ class NetworkDefenderEnv(gym.Env):
 
 # Example usage:
 if __name__ == "__main__":
-    env = NetworkDefenderEnv(n_nodes=15, extra_edge_prob=0.3, episode_length=100, seed=41, noise_mean=0.0, noise_95_interval=0.0)
+    env = NetworkDefenderEnv(n_nodes=15, extra_edge_prob=0.3, episode_length=100, seed=39, noise_mean=0.2, noise_95_interval=0.2)
     obs, _ = env.reset()
     env.render()
     total_reward = 0

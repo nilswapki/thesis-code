@@ -25,7 +25,7 @@ def get_config():
     config.config_critic.hidden_dims = (256, 256)
 
     config.discount = 0.99
-    config.tau = 0.002
+    config.tau = 0.005
 
     config.init_temperature = 1.0
     config.update_temperature = True

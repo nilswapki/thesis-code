@@ -186,7 +186,7 @@ class NetworkDefenderEnv(gym.Env):
                     self.done = True
                 else:
                     # Restoration has a penalty.
-                    self.reward -= 10
+                    self.reward -= 5
 
         # Negative reward for each timestep
         self.reward -= 1

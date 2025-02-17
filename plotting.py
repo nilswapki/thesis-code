@@ -71,8 +71,8 @@ def plot_invalid_share(data, window_size=10):
 
 
 if __name__ == '__main__':
-    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/100/mlp/'
-    file_path = '2025-02-11-15:20:22'
+    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/100/lstm/'
+    file_path = '2025-02-14-11:15:50'
 
     data = pd.read_csv(base_path + file_path + '/progress_train.csv', comment='#')
 
@@ -87,9 +87,9 @@ if __name__ == '__main__':
         import re
         n_nodes = re.search(r'n_nodes:\s*(\d+)', flags_content).group(1)
         extra_edge_prob = re.search(r'extra_edge_prob:\s*([\d.]+)', flags_content).group(1)
-        num_critical_nodes = re.search(r'num_critical_nodes:\s*(\d+)', flags_content).group(1)
+        #num_critical_nodes = re.search(r'num_critical_nodes:\s*(\d+)', flags_content).group(1)
 
-        file_info = f"{file_path.replace('/', '_').replace(':', '-')}_n{n_nodes}_e{extra_edge_prob}_c{num_critical_nodes}_{base_path.split('/')[-2]}"
+        file_info = f"{file_path.replace('/', '_').replace(':', '-')}_n{n_nodes}_e{extra_edge_prob}_{base_path.split('/')[-2]}"
         plt.savefig(f'z_plots/reward_plot_smoothing_{file_info}.png')
 
 

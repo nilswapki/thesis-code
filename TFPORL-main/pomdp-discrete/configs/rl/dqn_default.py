@@ -30,10 +30,10 @@ def get_config():
     config.config_critic.hidden_dims = (256, 256)
 
     config.discount = 0.99
-    config.tau = 0.005
-    config.schedule_end = 0.1  # at least good for TMaze-like envs
+    config.tau = 0.005  # only for target networks?
+    config.schedule_end = 0.5  # 0.1 good for TMaze-like envs
 
     config.replay_buffer_size = 1e6
-    config.replay_buffer_num_episodes = 1e3
+    config.replay_buffer_num_episodes = 1e4
 
     return config
