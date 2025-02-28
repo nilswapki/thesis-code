@@ -71,8 +71,8 @@ def plot_invalid_share(data, window_size=10):
 
 
 if __name__ == '__main__':
-    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/100/lstm/'
-    file_path = '2025-02-14-11:15:50'
+    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/100/mlp/'
+    file_path = '2025-02-23-14:24:59'
 
     data = pd.read_csv(base_path + file_path + '/progress_train.csv', comment='#')
 

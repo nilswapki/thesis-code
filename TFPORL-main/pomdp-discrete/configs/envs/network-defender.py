@@ -17,7 +17,8 @@ def create_fn(config: ConfigDict) -> Tuple[ConfigDict, str]:
             n_nodes=config.n_nodes,
             extra_edge_prob=config.extra_edge_prob,
             noise_mean=config.noise_mean,
-            noise_95_interval=config.noise_95_interval
+            noise_95_interval=config.noise_95_interval,
+            recursive=config.recursive,
         ),
         max_episode_steps=length,  # NOTE: has to define it here
     )
@@ -40,6 +41,7 @@ def get_config():
     config.extra_edge_prob = 0.3
     config.noise_mean = 0.0
     config.noise_95_interval = 0.0
+    config.recursive = True
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]
     config.env_name = 100

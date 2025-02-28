@@ -174,8 +174,7 @@ class Learner:
             train_stats = self.update(
                 int(self._n_env_steps_total * self.FLAGS.updates_per_step)
             )
-            #self.log_train_stats(train_stats)
-            #self.log_training()
+            self.log_train_stats(train_stats)
 
         last_eval_num_iters = 0
         while self._n_env_steps_total < self.n_env_steps_total:
@@ -186,7 +185,7 @@ class Learner:
                 int(math.ceil(self.FLAGS.updates_per_step * env_steps))
             )  # NOTE: ceil to make sure at least 1 step
 
-            #self.log_train_stats(train_stats)
+            self.log_train_stats(train_stats)
 
             # evaluate and log
             current_num_iters = self._n_env_steps_total // (
@@ -460,6 +459,7 @@ class Learner:
         return returns_per_episode, success_rate, total_steps, trajs
 
     def log_train_stats(self, train_stats):
+        logger.Logger.CURRENT = logger.Logger.STATS
         logger.record_step("env_steps", self._n_env_steps_total)
         ## log losses
         for k, v in train_stats.items():

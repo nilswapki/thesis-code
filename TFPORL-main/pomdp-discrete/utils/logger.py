@@ -447,12 +447,15 @@ def configure(dir, format_strs=LOG_OUTPUT_FORMATS, log_suffix="", precision=4):
 
     log_suffix_train = '_train'
     log_suffix_eval = '_eval'
+    log_suffix_stats = '_stats'
 
     output_formats_train = [make_output_format(f, dir, log_suffix_train) for f in format_strs]
     output_formats_eval = [make_output_format(f, dir, log_suffix_eval) for f in format_strs]
+    output_formats_stats = [make_output_format(f, dir, log_suffix_stats) for f in format_strs]
 
     Logger.TRAIN = Logger(dir=dir, output_formats=output_formats_train, precision=precision)
     Logger.EVAL = Logger(dir=dir, output_formats=output_formats_eval, precision=precision)
+    Logger.STATS = Logger(dir=dir, output_formats=output_formats_stats, precision=precision)
 
     Logger.CURRENT = Logger.TRAIN
     #log("*" * 10, "\nLogging to %s" % dir, "\n" + "*" * 10)
