@@ -2,11 +2,11 @@ import gymnasium as gym
 from gym import spaces
 import numpy as np
 from .minimal import SimplifiedCAGE
-from .baseline_agents import Meander_minimal
+from .baseline_agents import Meander_minimal, B_line_minimal, Blue_sleep
 
 
 class SimplifiedCAGEWrapper(gym.Env):
-    def __init__(self, num_envs=1, remove_bugs=True, red_agent=None, episode_length=100, verbose=False):
+    def __init__(self, num_envs=1, remove_bugs=True, red_agents=None, episode_length=100, verbose=False):
         super().__init__()
         self.name = 'mini-cage'
         self.env = SimplifiedCAGE(num_envs, remove_bugs)
@@ -17,10 +17,11 @@ class SimplifiedCAGEWrapper(gym.Env):
         self.eval_length = episode_length
         self.steps_taken = 0
 
-        if red_agent is not None:
-            self.red_agent = red_agent
+        if red_agents is not None:
+            self.red_agents = red_agents
         else:
-            self.red_agent = Meander_minimal()
+            self.red_agents = [B_line_minimal()]
+        self.current_red_agent_index = 0
 
         # Define the action space for BLUE agent
         self.action_space = spaces.Discrete((4 * self.env.num_nodes) + 1)
@@ -30,6 +31,11 @@ class SimplifiedCAGEWrapper(gym.Env):
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(self.env.num_nodes*6,), dtype=np.float32)
 
     def reset(self, seed=None, options=None):
+
+        # Rotate to the next red agent
+        self.current_red_agent_index = (self.current_red_agent_index + 1) % len(self.red_agents)
+        self.red_agent = self.red_agents[self.current_red_agent_index]
+
         # Reset the environment
         self.steps_taken = 0
         state, info = self.env.reset()

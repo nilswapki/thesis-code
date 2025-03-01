@@ -21,8 +21,8 @@ class SimplifiedCAGEWrapperRed(gym.Env):
             self.blue_agents = blue_agents
         else:
             self.blue_agents = [React_restore_minimal()]
-
         self.current_blue_agent_index = 0
+
         # Define the action space for BLUE agent
         self.action_space = spaces.Discrete(self.env.num_subnets+self.env.num_hosts*len(self.env.red_actions[2:])+1)
 

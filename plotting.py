@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 matplotlib.use('TkAgg')
 import pandas as pd
 import io
+import re
 
 
 def plot_reward(data, window_size=10):
@@ -71,8 +72,8 @@ def plot_invalid_share(data, window_size=10):
 
 
 if __name__ == '__main__':
-    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/100/mlp/'
-    file_path = '2025-02-23-14:24:59'
+    base_path = 'TFPORL-main/pomdp-discrete/logs/mini-cage/100/mlp/'
+    file_path = '2025-03-01-12:17:52'
 
     data = pd.read_csv(base_path + file_path + '/progress_train.csv', comment='#')
 
@@ -83,14 +84,11 @@ if __name__ == '__main__':
     with open(flags_path, 'r') as f:
         flags_content = f.read()
 
-        # Extract n_nodes, extra_edge_prob, and num_critical_nodes from flags.txt
-        import re
-        n_nodes = re.search(r'n_nodes:\s*(\d+)', flags_content).group(1)
-        extra_edge_prob = re.search(r'extra_edge_prob:\s*([\d.]+)', flags_content).group(1)
-        #num_critical_nodes = re.search(r'num_critical_nodes:\s*(\d+)', flags_content).group(1)
+        # read the env type from the flags.txt file
+        env_type = re.search(r'env_type:\s*([\w-]+)', flags_content).group(1)
 
-        file_info = f"{file_path.replace('/', '_').replace(':', '-')}_n{n_nodes}_e{extra_edge_prob}_{base_path.split('/')[-2]}"
-        plt.savefig(f'z_plots/reward_plot_smoothing_{file_info}.png')
+
+        plt.savefig(f'z_plots/reward_{env_type}.png')
 
 
     #plot_invalid_share(data, window_size=50)

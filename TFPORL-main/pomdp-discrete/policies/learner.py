@@ -517,7 +517,7 @@ class Learner:
 
         return np.mean(returns_eval), trajs
 
-    def save_model(self, total_steps, trajs, perf):
+    def save_model(self, total_steps, trajs, perf, full_model=True):
         if not os.path.exists(os.path.join(logger.get_dir(), "save")):
             os.makedirs(os.path.join(logger.get_dir(), "save"))
         save_path = os.path.join(
@@ -525,7 +525,14 @@ class Learner:
             "save",
             f"agent_{total_steps:0{self._digit()}d}_perf{perf:.3f}.pt",
         )
-        torch.save(self.agent.state_dict(), save_path)
+        if full_model:
+            self.agent.to("cpu")
+            temp_schedule = self.agent.schedule
+            self.agent.schedule = None
+            torch.save(self.agent, save_path)
+            self.agent.schedule = temp_schedule
+        else:
+            torch.save(self.agent.state_dict(), save_path)
         # save_traj_path = os.path.join(
         #     logger.get_dir(),
         #     "save",
@@ -534,7 +541,7 @@ class Learner:
         # torch.save(trajs, save_traj_path)
 
     def load_model(self, ckpt_path):
-        model = torch.load(ckpt_path, map_location=ptu.device)
+        model = torch.load(ckpt_path, map_location=ptu.device, weights_only=True)
         for k in [k for k in model.keys()]:
             if '.attn.bias' in k:
                 model[k] = self.agent.critic.seq_model.transformer.h[0].attn.bias
