@@ -2,13 +2,13 @@ import gymnasium as gym
 from gym import spaces
 import numpy as np
 from .minimal import SimplifiedCAGE
-from .test_agent import React_restore_minimal, AdaptiveDefender
+from .baseline_agents import React_restore_minimal, AdaptiveDefender
 
 
 class SimplifiedCAGEWrapperRed(gym.Env):
-    def __init__(self, num_envs=1, num_nodes=13, remove_bugs=False, blue_agents=None, episode_length=100, verbose=False):
+    def __init__(self, num_envs=1, num_nodes=13, remove_bugs=True, blue_agents=None, episode_length=100, verbose=False):
         super().__init__()
-        self.env = SimplifiedCAGE(num_envs, num_nodes, remove_bugs)
+        self.env = SimplifiedCAGE(num_envs, remove_bugs)
         self.num_envs = num_envs
         self.num_nodes = num_nodes
         self.verbose = verbose
@@ -23,8 +23,8 @@ class SimplifiedCAGEWrapperRed(gym.Env):
             self.blue_agents = [React_restore_minimal()]
         self.current_blue_agent_index = 0
 
-        # Define the action space for BLUE agent
-        self.action_space = spaces.Discrete(self.env.num_subnets+self.env.num_hosts*len(self.env.red_actions[2:])+1)
+        # Define the action space for RED agent
+        self.action_space = spaces.Discrete(self.env.num_subnets+self.env.num_nodes*len(self.env.red_actions[2:])+1)
 
         # Define the observation space based on the environment's state
         self.observation_space = spaces.Box(-1.0, 1.0, shape=((self.env.num_nodes*3)+1,), dtype=np.float32)
