@@ -4,6 +4,7 @@ import numpy as np
 import networkx as nx
 import random
 from collections import deque
+import matplotlib.pyplot as plt
 
 
 class NetworkDefenderEnv(gym.Env):
@@ -62,6 +63,7 @@ class NetworkDefenderEnv(gym.Env):
         self.action_space = spaces.Discrete(self.n_nodes+1)
 
         self.timestep = 0
+        self.summary_reward = 0
         self.done = False
 
     def seed(self, seed=None):
@@ -110,6 +112,7 @@ class NetworkDefenderEnv(gym.Env):
 
     def reset(self, seed=None, return_info=False, options=None):
         self.timestep = 0
+        self.summary_reward = 0
         self.done = False
 
         # Reset node statuses.
@@ -145,15 +148,15 @@ class NetworkDefenderEnv(gym.Env):
             # If node to be restored is actually infiltrated, restore it.
             if (action != self.initial_attacker_node) and (self.infiltrated[action] > 0): # cannot restore the initial foothold of the attacker
                 self.infiltrated[action] = 0
-                reward += 10
+                reward += 1
             # If node to be restored is passively infiltrated, restore it.
             elif (action != self.initial_attacker_node) and (action in self.passively_infiltrated):
                 self.infiltrated[action] = 0
                 self.passively_infiltrated.remove(action)
-                reward += 5
+                reward += 0.5
             # If node to be restored is not actively or passively infiltrated, penalize.
             else:
-                reward -= 10
+                reward -= 1
                 restore_necessary = 1
 
             if self.recursive:
@@ -164,6 +167,7 @@ class NetworkDefenderEnv(gym.Env):
                         if not nx.has_path(self.graph.subgraph(np.where(self.infiltrated > 0)[0]), node, self.initial_attacker_node):
                             # reset the node
                             self.infiltrated[node] = 0
+                            reward += 0.5
                             # add the node to a list of passively infiltrated nodes (attacker still has knowledge)
                             self.passively_infiltrated.append(node)
 
@@ -211,15 +215,16 @@ class NetworkDefenderEnv(gym.Env):
                         self.infiltrated[node] = 1
 
         # reward is the negative sum of all infiltrated nodes
-        reward -= (np.sum(self.infiltrated > 0) - 1)  # dont give negative reward for initial foothold
+        reward -= (np.sum(self.infiltrated > 0) - 1) * 0.1  # dont give negative reward for initial foothold
 
         # End episode if maximum timesteps reached.
         if self.timestep >= self.episode_length:
+            reward += self.summary_reward
             self.done = True
 
         self._update_sensor_reading()
         obs = self._get_obs()
-        info = {"initial_attacker_node": self.initial_attacker_node, "infiltrated nodes": self.infiltrated,
+        info = {"initial_attacker_node": self.initial_attacker_node, "infiltrated_nodes": self.infiltrated,
                 "restored": restore_necessary}
         return obs, reward, self.done, info
 
@@ -240,8 +245,12 @@ class NetworkDefenderEnv(gym.Env):
 
 # Example usage:
 if __name__ == "__main__":
-    env = NetworkDefenderEnv(n_nodes=15, extra_edge_prob=0.3, episode_length=100, seed=36,
+    env = NetworkDefenderEnv(n_nodes=15, extra_edge_prob=0.2, episode_length=100, seed=36,
                              noise_mean=0.2, noise_95_interval=0.2, recursive=True)
+
+    nx.draw(env.graph, with_labels=True, node_color='lightblue', font_weight='bold', node_size=500, font_size=12)
+    plt.savefig('graph')
+    """
     obs, _ = env.reset()
     env.render()
     total_reward = 0
@@ -254,3 +263,4 @@ if __name__ == "__main__":
         print(f"Action: {action}, Reward: {reward}")
         env.render()
     print("Total Reward:", total_reward)
+    """

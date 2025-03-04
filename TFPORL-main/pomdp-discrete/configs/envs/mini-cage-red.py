@@ -25,8 +25,8 @@ def get_config():
     config.env_type = "mini-cage-red"
     config.terminal_fn = finite_horizon_terminal
 
-    config.eval_interval = 10
-    config.save_interval = 1000
+    config.eval_interval = 100
+    config.save_interval = 500
     config.eval_episodes = 2
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]

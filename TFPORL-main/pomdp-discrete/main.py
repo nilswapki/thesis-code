@@ -1,4 +1,6 @@
 import os, time
+os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
+os.environ["CUDA_VISIBLE_DEVICES"] = "1/2/0"  # GPU 1, GPU Instance 2, and Compute Instance 0 --> first partition of A100
 
 t0 = time.time()
 pid = str(os.getpid())
@@ -23,14 +25,14 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/mini-cage.py",
+    "configs/envs/network-defender.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/dqn_default.py",
+    "configs/rl/sacd_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
@@ -51,10 +53,10 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_integer("seed", 1, "Random seed.")
-flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 100, "Number of episodes during training.")
-flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
+flags.DEFINE_list("seeds", [42, 43], "Random seed.")
+flags.DEFINE_integer("batch_size", 128, "Mini batch size.")
+flags.DEFINE_integer("train_episodes", 2, "Number of episodes during training.")
+flags.DEFINE_float("updates_per_step", 1, "Gradient updates per step.")
 flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")
 
 # logging settings
@@ -65,59 +67,59 @@ flags.DEFINE_string("run_name", None, "used in sbatch")
 
 
 def main(argv):
-    if FLAGS.seed < 0:
-        seed = int(pid)  # to avoid conflict within a job which has same datetime
-    else:
-        seed = FLAGS.seed
 
     config_env = FLAGS.config_env
     config_rl = FLAGS.config_rl
     config_seq = FLAGS.config_seq
-
     config_env, env_name = config_env.create_fn(config_env)
-    env = make_env(env_name, seed)
-    eval_env = make_env(env_name, seed + 42, eval=True)
 
-    system.reproduce(seed)
-    torch.set_num_threads(1)
-    np.set_printoptions(precision=3, suppress=True)
-    torch.set_printoptions(precision=3, sci_mode=False)
+    config_seq, _ = config_seq.name_fn(config_seq, config_env.env_name)
+    max_training_steps = int(FLAGS.train_episodes * config_env.env_name)
+    config_rl, _ = config_rl.name_fn(
+        config_rl, config_env.env_name, max_training_steps
+    )
 
     #set_gpu_mode((torch.cuda.is_available()))
-    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available())
-                 and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
+    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available()))
+                #and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
+    
+    for seed in FLAGS.seeds:  # Loop over the list of seeds
+        
+        env = make_env(env_name, seed)
+        eval_env = make_env(env_name, seed + 42, eval=True)
 
-    ## now only use env and time as directory name
-    run_name = f"{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/"
-    config_seq, _ = config_seq.name_fn(config_seq, env.max_episode_steps)
-    max_training_steps = int(FLAGS.train_episodes * env.max_episode_steps)
-    config_rl, _ = config_rl.name_fn(
-        config_rl, env.max_episode_steps, max_training_steps
-    )
-    uid = f"{system.now_str()}"  # +{jobid}-{pid}
-    run_name += uid
-    FLAGS.run_name = uid
+        system.reproduce(seed)
+        torch.set_num_threads(1)
+        np.set_printoptions(precision=3, suppress=True)
+        torch.set_printoptions(precision=3, sci_mode=False)
 
-    format_strs = ["csv"]
-    if FLAGS.debug:
-        FLAGS.save_dir = "debug"
-        format_strs.extend(["stdout", "log"])  # logger.log
+        ## now only use env and time as directory name
+        run_name = f"{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/"
 
-    log_path = os.path.join(FLAGS.save_dir, run_name)
-    FLAGS.log_dir = log_path
-    logger.configure(dir=log_path, format_strs=format_strs)
+        uid = f"{system.now_str()}"  # +{jobid}-{pid}
+        run_name += uid
+        FLAGS.run_name = uid
 
-    # write flags to a txt
-    key_flags = FLAGS.get_key_flags_for_module(argv[0])
-    with open(os.path.join(log_path, "flags.txt"), "w") as text_file:
-        text_file.write("\n".join(f.serialize() for f in key_flags) + "\n")
-    # write flags to pkl
-    with open(os.path.join(log_path, "flags.pkl"), "wb") as f:
-        pickle.dump(FLAGS.flag_values_dict(), f)
+        format_strs = ["csv"]
+        if FLAGS.debug:
+            FLAGS.save_dir = "debug"
+            format_strs.extend(["stdout", "log"])  # logger.log
 
-    # start training
-    learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
-    learner.train()
+        log_path = os.path.join(FLAGS.save_dir, run_name)
+        FLAGS.log_dir = log_path
+        logger.configure(dir=log_path, format_strs=format_strs)
+
+        # write flags to a txt
+        key_flags = FLAGS.get_key_flags_for_module(argv[0])
+        with open(os.path.join(log_path, "flags.txt"), "w") as text_file:
+            text_file.write("\n".join(f.serialize() for f in key_flags) + "\n")
+        # write flags to pkl
+        with open(os.path.join(log_path, "flags.pkl"), "wb") as f:
+            pickle.dump(FLAGS.flag_values_dict(), f)
+
+        # start training
+        learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
+        learner.train()
 
 
 if __name__ == "__main__":

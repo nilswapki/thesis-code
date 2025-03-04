@@ -7,22 +7,13 @@ __pycache__/
 *.sh
 
 # logs, a soft link to disk
-logs*
-logs/
-debug/
-ablation/
 
 # slurm
 *.out 
 logs_old/
 debug_old/
 
-plts/
-official
-results
 
 *.ipynb
 test_new_model
-*.jpg
-*.pdf
 *.tar.gz

@@ -204,7 +204,7 @@ class Learner:
                 ):
                     # save models in later training stage
                     self.save_model(current_num_iters, trajs, perf)
-        self.save_model(current_num_iters, trajs, perf)
+        #self.save_model(current_num_iters, trajs, perf)
 
     @torch.no_grad()
     def collect_rollouts(self, num_rollouts, random_actions=False):
@@ -228,6 +228,7 @@ class Learner:
 
             # for network-defender
             restorations = 0  # tracks if a node was restored or not
+            infiltrations = 0
 
             if self.agent_arch in [AGENT_ARCHS.Memory, AGENT_ARCHS.Memory_Markov]:
                 # temporary storage
@@ -287,6 +288,7 @@ class Learner:
                     valid_list_red.append(info['valid_red'])
                 elif self.train_env.name == "network-defender":
                     restorations += info['restored']
+                    infiltrations += (np.sum(info['infiltrated_nodes'] > 0) - 1)
 
                 if self.agent_arch == AGENT_ARCHS.Markov:
                     self.policy_storage.add_sample(
@@ -350,13 +352,14 @@ class Learner:
                     f"Episode: {self._n_rollouts_total:03d} --- "
                     f"Steps: {steps:03d} --- "
                     f"Reward: {total_reward:05.2f} --- "
-                    f"Restorations: {restorations:02d}")
+                    f"Unnecessary Restorations: {restorations:02d} --- "
+                    f"Infiltrations: {infiltrations:03d}")
 
             if self.train_env.name == 'mini-cage':
                 self.log_training(reward=total_reward, success=False, total_steps=steps,
                                   invalid_actions_blue=invalid_actions_blue, invalid_actions_red=invalid_actions_red)
             elif self.train_env.name == 'network-defender':
-                self.log_training(reward=total_reward, success=False, total_steps=steps, restorations=restorations)
+                self.log_training(reward=total_reward, success=False, total_steps=steps, restorations=restorations, infiltrations=infiltrations)
 
             self._n_env_steps_total += steps
             self._n_rollouts_total += 1
@@ -472,7 +475,7 @@ class Learner:
         logger.dump_tabular()
 
 
-    def log_training(self, reward, success, total_steps, invalid_actions_blue=None, invalid_actions_red=None, restorations=None):
+    def log_training(self, reward, success, total_steps, invalid_actions_blue=None, invalid_actions_red=None, restorations=None, infiltrations=None):
 
         logger.Logger.CURRENT = logger.Logger.TRAIN
 
@@ -484,6 +487,7 @@ class Learner:
             logger.record_tabular("invalid_actions_red", invalid_actions_red)
         elif self.train_env.name == "network-defender":
             logger.record_tabular("restorations", restorations)
+            logger.record_tabular("infiltrations", infiltrations)
 
         logger.record_tabular("length", total_steps)
         logger.record_tabular("FPS",
@@ -517,7 +521,7 @@ class Learner:
 
         return np.mean(returns_eval), trajs
 
-    def save_model(self, total_steps, trajs, perf, full_model=True):
+    def save_model(self, total_steps, trajs, perf):
         if not os.path.exists(os.path.join(logger.get_dir(), "save")):
             os.makedirs(os.path.join(logger.get_dir(), "save"))
         save_path = os.path.join(
@@ -525,14 +529,9 @@ class Learner:
             "save",
             f"agent_{total_steps:0{self._digit()}d}_perf{perf:.3f}.pt",
         )
-        if full_model:
-            self.agent.to("cpu")
-            temp_schedule = self.agent.schedule
-            self.agent.schedule = None
-            torch.save(self.agent, save_path)
-            self.agent.schedule = temp_schedule
-        else:
-            torch.save(self.agent.state_dict(), save_path)
+
+        torch.save(self.agent.state_dict(), save_path)
+
         # save_traj_path = os.path.join(
         #     logger.get_dir(),
         #     "save",

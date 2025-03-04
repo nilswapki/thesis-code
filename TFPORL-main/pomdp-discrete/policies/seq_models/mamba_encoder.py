@@ -4,10 +4,10 @@ import torch
 from abc import ABC, abstractmethod
 from typing import Tuple, List
 
-try:
-    from mamba_ssm import Mamba
-except ImportError:
-    Mamba = None
+#try:
+from mamba_ssm import Mamba
+#except ImportError:
+#    Mamba = None
 
 class TrajEncoder(nn.Module, ABC):
     def __init__(self, tstep_dim: int, max_seq_len: int, horizon: int):

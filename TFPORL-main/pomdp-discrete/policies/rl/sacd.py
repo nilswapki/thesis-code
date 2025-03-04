@@ -26,7 +26,7 @@ class SACD(RLAlgorithmBase):
         self.update_temperature = update_temperature
         if self.update_temperature:
             if target_entropy is None:
-                target_entropy = -np.log(1 / action_dim) * 0.98  # -action_dim  # CHANGED
+                target_entropy = -np.log(1 / action_dim) * 0.99  # -action_dim  # CHANGED
             assert target_entropy is not None
             self.target_entropy = float(target_entropy) * np.log(action_dim)
             self.log_alpha_entropy = torch.zeros(

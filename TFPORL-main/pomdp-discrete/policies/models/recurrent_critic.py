@@ -138,13 +138,21 @@ class Critic_RNN(nn.Module):
     ):
         # for evaluation (not training), so no target actor, and T = 1
         # a function that generates action, works like a pytorch module
-
-        hidden_state, current_internal_state = self.get_hidden_states(
+        if prev_internal_state is None:
+            hidden_state = self.get_hidden_states(
             prev_actions=prev_action,
             rewards=reward,
             observs=obs,
             initial_internal_state=prev_internal_state,
-        )
+            )
+            current_internal_state = None
+        else:
+            hidden_state, current_internal_state = self.get_hidden_states(
+                prev_actions=prev_action,
+                rewards=reward,
+                observs=obs,
+                initial_internal_state=prev_internal_state,
+            )
         if hidden_state.dim() == 3:
             hidden_state = hidden_state.squeeze(0)  # (B, dim)
 
