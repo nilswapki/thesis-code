@@ -4,7 +4,10 @@ matplotlib.use('TkAgg')
 import pandas as pd
 import io
 import re
-
+import pickle
+import os
+from ml_collections import config_flags
+from absl import app, flags
 
 def plot_reward(data, window_size=10):
     """
@@ -70,25 +73,61 @@ def plot_invalid_share(data, window_size=10):
     plt.savefig('invalid_share_plot_smoothing.png')
     plt.show()
 
+def parse_flags(file_path):
+    extracted = {}
+
+    with open(file_path, "r") as f:
+        for line in f:
+            line = line.strip()
+
+            # Handle flags like --noshared_encoder
+            if line.startswith("--"):
+                if "=" in line:
+                    key, value = line.split("=")
+                    key = key.strip("-")
+                    value = value.strip()
+
+                    # Convert numeric values
+                    if value.replace(".", "", 1).isdigit():
+                        value = float(value) if "." in value else int(value)
+
+                    extracted[key] = value
+                else:
+                    # Store flags without values as True
+                    extracted[line.strip("-")] = True
+            else:
+                # Handle normal key-value pairs
+                key_value = line.split(":")
+                if len(key_value) == 2:
+                    key, value = key_value
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Convert numeric values
+                    if value.replace(".", "", 1).isdigit():
+                        value = float(value) if "." in value else int(value)
+
+                    extracted[key] = value
+
+    # Extract specific keys
+    return extracted
+
 
 if __name__ == '__main__':
-    base_path = 'TFPORL-main/pomdp-discrete/logs/mini-cage/100/mlp/'
-    file_path = '2025-03-01-12:17:52'
+    base_path = 'TFPORL-main/pomdp-discrete/logs/network-defender/100/mlp/'
+    file_path = '2025-03-06-14:00:36'
+
+    # Load the pkl file
+    config_dict = parse_flags(os.path.join(base_path + file_path, "flags.txt"))
+
+    save_name = f'{config_dict["env_type"]}-{config_dict["train_episodes"]}-{config_dict["algo"]}-{config_dict["seeds"]}'
 
     data = pd.read_csv(base_path + file_path + '/progress_train.csv', comment='#')
 
     reward_fig = plot_reward(data, window_size=50)
 
-    # Save the figure and show
-    flags_path = base_path + file_path + '/flags.txt'
-    with open(flags_path, 'r') as f:
-        flags_content = f.read()
 
-        # read the env type from the flags.txt file
-        env_type = re.search(r'env_type:\s*([\w-]+)', flags_content).group(1)
-
-
-        plt.savefig(f'z_plots/reward_{env_type}.png')
+    plt.savefig('z_plots/' + save_name + '.png')
 
 
     #plot_invalid_share(data, window_size=50)

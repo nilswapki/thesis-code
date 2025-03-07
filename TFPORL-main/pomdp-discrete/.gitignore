@@ -12,6 +12,7 @@ __pycache__/
 *.out 
 logs_old/
 debug_old/
+logs/
 
 
 *.ipynb

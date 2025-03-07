@@ -1,6 +1,4 @@
 import os, time
-os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
-os.environ["CUDA_VISIBLE_DEVICES"] = "1/2/0"  # GPU 1, GPU Instance 2, and Compute Instance 0 --> first partition of A100
 
 t0 = time.time()
 pid = str(os.getpid())
@@ -21,6 +19,11 @@ from policies.learner import Learner
 from policies.learner_regular import LearnerRegular
 from envs.make_env import make_env
 
+if torch.cuda.is_available():  # if running on work computer
+    os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1/2/0"  # GPU 1, GPU Instance 2, and Compute Instance 0 --> first partition of A100
+
+
 FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
@@ -32,7 +35,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/sacd_default.py",
+    "configs/rl/dqn_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
@@ -53,10 +56,10 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_list("seeds", [42, 43], "Random seed.")
-flags.DEFINE_integer("batch_size", 128, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 2, "Number of episodes during training.")
-flags.DEFINE_float("updates_per_step", 1, "Gradient updates per step.")
+flags.DEFINE_list("seeds", [45], "Random seed.")
+flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
+flags.DEFINE_integer("train_episodes", 1000, "Number of episodes during training.")
+flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
 flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")
 
 # logging settings
@@ -80,8 +83,8 @@ def main(argv):
     )
 
     #set_gpu_mode((torch.cuda.is_available()))
-    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available()))
-                #and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
+    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available())
+                and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
     
     for seed in FLAGS.seeds:  # Loop over the list of seeds
         

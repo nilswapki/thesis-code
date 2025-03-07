@@ -1,2 +1,0 @@
-env_steps,critic_loss,q1,q2,actor_loss,entropy,coef,critic_grad_norm,critic_seq_grad_norm,actor_grad_norm,actor_seq_grad_norm
-100,9.4333,-4.0737,-4.0935,0.5728,2.1869,1.0656,1.5999,1.5305,0.0143,0.0077

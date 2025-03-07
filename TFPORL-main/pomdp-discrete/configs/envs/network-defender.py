@@ -41,7 +41,7 @@ def get_config():
     config.extra_edge_prob = 0.3
     config.noise_mean = 0.0
     config.noise_95_interval = 0.0
-    config.recursive = True
+    config.recursive = False
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]
     config.env_name = 100
