@@ -18,31 +18,32 @@ from torchkit.pytorch_utils import set_gpu_mode
 from policies.learner import Learner
 from policies.learner_regular import LearnerRegular
 from envs.make_env import make_env
+from plotting import plot_feature
 
 if torch.cuda.is_available():  # if running on work computer
     os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1/2/0"  # GPU 1, GPU Instance 2, and Compute Instance 0 --> first partition of A100
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1/2/0"  # GPU 1, GPU Instance 2 (or 3, 9, 10), and Compute Instance 0 --> first partition of A100
 
 
 FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/network-defender.py",
+    "configs/envs/mini-cage.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/dqn_default.py",
+    "configs/rl/ppo2_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/mlp_default.py",
+    "configs/seq_models/lstm_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -56,7 +57,7 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_list("seeds", [45], "Random seed.")
+flags.DEFINE_list("seeds", [1, 2, 3, 4], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
 flags.DEFINE_integer("train_episodes", 1000, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
@@ -85,6 +86,8 @@ def main(argv):
     #set_gpu_mode((torch.cuda.is_available()))
     set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available())
                 and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
+
+    uid = f"{system.now_str()}"  # +{jobid}-{pid}
     
     for seed in FLAGS.seeds:  # Loop over the list of seeds
         
@@ -96,11 +99,9 @@ def main(argv):
         np.set_printoptions(precision=3, suppress=True)
         torch.set_printoptions(precision=3, sci_mode=False)
 
-        ## now only use env and time as directory name
-        run_name = f"{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/"
 
-        uid = f"{system.now_str()}"  # +{jobid}-{pid}
-        run_name += uid
+        run_name = f"{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/{uid}/seed-{seed}/"
+
         FLAGS.run_name = uid
 
         format_strs = ["csv"]
@@ -116,6 +117,7 @@ def main(argv):
         key_flags = FLAGS.get_key_flags_for_module(argv[0])
         with open(os.path.join(log_path, "flags.txt"), "w") as text_file:
             text_file.write("\n".join(f.serialize() for f in key_flags) + "\n")
+            text_file.write(f"\n--sequential_model={config_seq.model.seq_model_config.name}")
         # write flags to pkl
         with open(os.path.join(log_path, "flags.pkl"), "wb") as f:
             pickle.dump(FLAGS.flag_values_dict(), f)
@@ -123,6 +125,13 @@ def main(argv):
         # start training
         learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
         learner.train()
+
+    if FLAGS.train_episodes > config_env.eval_interval:
+        features = ['return', 'return_eval', 'critic_loss']
+    else:
+        features = ['return', 'critic_loss']
+    for feature in features:
+        plot_feature(folder_path=f"logs/{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/{uid}/", feature=feature)
 
 
 if __name__ == "__main__":

@@ -407,6 +407,14 @@ class Learner:
             running_reward = 0.0
             done_rollout = False
 
+            # for mini-cage
+            valid_list_blue = []  # tracks if an action was valid or not
+            valid_list_red = []  # tracks if an action was valid or not
+
+            # for network-defender
+            restorations = 0  # tracks if a node was restored or not
+            infiltrations = 0
+
             #obs_old = ptu.from_numpy(self.eval_env.reset())  # reset
             #obs_old = obs.reshape(1, obs.shape[-1])
 
@@ -419,6 +427,7 @@ class Learner:
                     self.config_seq.sampled_seq_len
                 )
             traj = dict(o=[], a=[], r=[], h=[], s=[])
+            infos = []
 
             while not done_rollout:
                 if self.agent_arch == AGENT_ARCHS.Memory:
@@ -448,18 +457,51 @@ class Learner:
                 step += 1
                 done_rollout = False if ptu.get_numpy(done[0][0]) == 0.0 else True
 
+                if self.train_env.name == "mini-cage":
+                    valid_list_blue.append(info['valid_blue'])
+                    valid_list_red.append(info['valid_red'])
+                elif self.train_env.name == "network-defender":
+                    restorations += info['restored']
+                    infiltrations += (np.sum(info['infiltrated_nodes'] > 0) - 1)
+
                 # set: obs <- next_obs
                 obs = next_obs.clone()
+            
+            if self.train_env.name == "mini-cage":
+                invalid_actions_blue = (1 - np.mean(valid_list_blue))
+                invalid_actions_red = (1 - np.mean(valid_list_red))
+
+            if self.train_env.name == "mini-cage":
+                info = {"invalid_actions_blue_eval": invalid_actions_blue, "invalid_actions_red_eval": invalid_actions_red}
+            elif self.train_env.name == "network-defender":
+                info = {"infiltrations_eval": infiltrations, "restorations_eval": restorations}
 
             trajs.append(traj)
+            infos.append(info)
             
             returns_per_episode[task_idx] = running_reward
             total_steps[task_idx] = step
             if "success" in info and info["success"] == True:  # keytodoor
                 success_rate[task_idx] = 1.0
+        
+        # Initialize a dictionary to store the sums and counts
+        sums = {}
+        counts = {}
+
+        # Loop through the list of dictionaries and calculate the sums and counts for each key
+        for info in infos:
+            for key, value in info.items():
+                if key not in sums:
+                    sums[key] = 0
+                    counts[key] = 0
+                sums[key] += value
+                counts[key] += 1
+
+        # Now calculate the means
+        infos = {key: sums[key] / counts[key] for key in sums}
 
         self.agent.train()  # set it back to train
-        return returns_per_episode, success_rate, total_steps, trajs
+        return returns_per_episode, success_rate, total_steps, trajs, infos
 
     def log_train_stats(self, train_stats):
         logger.Logger.CURRENT = logger.Logger.STATS
@@ -505,14 +547,16 @@ class Learner:
         logger.Logger.CURRENT = logger.Logger.EVAL
 
         logger.record_step("env_steps", self._n_env_steps_total)
-        returns_eval, success_rate_eval, total_steps_eval, trajs = self.evaluate()
-        logger.record_tabular("return", np.mean(returns_eval))
-        logger.record_tabular("success", np.mean(success_rate_eval))
-        logger.record_tabular("length", np.mean(total_steps_eval))
-        logger.record_tabular("FPS",
+        returns_eval, success_rate_eval, total_steps_eval, trajs, infos = self.evaluate()
+        logger.record_tabular("return_eval", np.mean(returns_eval))
+        for k, v in infos.items():
+            logger.record_tabular(k, v)
+        logger.record_tabular("success_eval", np.mean(success_rate_eval))
+        logger.record_tabular("length_eval", np.mean(total_steps_eval))
+        logger.record_tabular("FPS_eval",
             (self._n_env_steps_total - self._n_env_steps_total_last)
             / (time.time() - self._start_time_last))
-        logger.record_tabular("time", (time.time() - self._start_time_last))
+        logger.record_tabular("time_eval", (time.time() - self._start_time_last))
 
         self._n_env_steps_total_last = self._n_env_steps_total
         self._start_time_last = time.time()
