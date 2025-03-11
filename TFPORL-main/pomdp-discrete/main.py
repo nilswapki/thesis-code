@@ -29,7 +29,7 @@ mig_devices = [
 
 if torch.cuda.is_available():  # if running on work computer
     os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
-    #os.environ["CUDA_VISIBLE_DEVICES"] = mig_devices[0] #"1/9/0"  # GPU 1, GPU Instance 2 (or 3, 9, 10), and Compute Instance 0 --> first partition of A100
+    #os.environ["CUDA_VISIBLE_DEVICES"] = mig_devices[1] #"1/9/0"  # GPU 1, GPU Instance 2 (or 3, 9, 10), and Compute Instance 0 --> first partition of A100
 
 
 FLAGS = flags.FLAGS
@@ -50,7 +50,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/lstm_default.py",
+    "configs/seq_models/mlp_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -64,11 +64,11 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_list("seeds", [1, 2, 3], "Random seed.")
+flags.DEFINE_list("seeds", [1, 2, 3, 4, 5], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 1000, "Number of episodes during training.")
+flags.DEFINE_integer("train_episodes", 10000, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
-flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")  # TODO
+flags.DEFINE_integer("start_training", 10, "Number of episodes to start training.")
 
 # logging settings
 flags.DEFINE_boolean("debug", False, "debug mode")
@@ -146,5 +146,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    
+
     app.run(main)

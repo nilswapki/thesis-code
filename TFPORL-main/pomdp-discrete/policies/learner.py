@@ -347,6 +347,15 @@ class Learner:
                     f"Invalid Actions Blue: {invalid_actions_blue:04.2f} --- "
                     f"Invalid Actions Red: {invalid_actions_red:04.2f}"
                 )
+            elif self.train_env.name == "mini-cage-red":
+                # print and log
+                print(
+                    f"Episode: {self._n_rollouts_total:03d} --- "
+                    f"Steps: {steps:03d} --- "
+                    f"Reward: {total_reward:05.2f} --- "
+                    #f"Invalid Actions Blue: {invalid_actions_blue:04.2f} --- "
+                    #f"Invalid Actions Red: {invalid_actions_red:04.2f}"
+                )
             elif self.train_env.name == "network-defender":
                 print(
                     f"Episode: {self._n_rollouts_total:03d} --- "

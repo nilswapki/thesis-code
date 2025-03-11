@@ -2,12 +2,13 @@ import gymnasium as gym
 from gym import spaces
 import numpy as np
 from .minimal import SimplifiedCAGE
-from .baseline_agents import React_restore_minimal, AdaptiveDefender
+from .baseline_agents import React_restore_minimal, Restore_decoys, ProactiveDefenderWithDecoys
 
 
 class SimplifiedCAGEWrapperRed(gym.Env):
     def __init__(self, num_envs=1, num_nodes=13, remove_bugs=True, blue_agents=None, episode_length=100, verbose=False):
         super().__init__()
+        self.name = 'mini-cage-red'
         self.env = SimplifiedCAGE(num_envs, remove_bugs)
         self.num_envs = num_envs
         self.num_nodes = num_nodes
@@ -20,7 +21,7 @@ class SimplifiedCAGEWrapperRed(gym.Env):
         if blue_agents is not None:
             self.blue_agents = blue_agents
         else:
-            self.blue_agents = [React_restore_minimal()]
+            self.blue_agents = [React_restore_minimal(), Restore_decoys(), ProactiveDefenderWithDecoys()]
         self.current_blue_agent_index = 0
 
         # Define the action space for RED agent

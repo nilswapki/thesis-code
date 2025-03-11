@@ -333,49 +333,260 @@ class AdaptiveDefender(Base_agent):
                 self.threat_levels[target_host] = 0  # Reset after restoration
 
         return actions.reshape(-1, 1).astype(int)
+    
+
+class AdaptiveDefenderV2(Base_agent):
+    """
+    Adaptive Defender V2 for CybORG Cage 2 (miniCage version).
+    This defender maintains a decaying threat level for each host based on its 
+    compromise status over time. It then prioritizes restoring the host with 
+    the highest threat.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reset()
+    
+    def reset(self, *args, **kwargs):
+        self.num_hosts = 13
+        self.threat_levels = np.zeros(self.num_hosts)
+        self.last_restored = np.full(self.num_hosts, -np.inf)
+        self.timestep = 0
+        # Hyperparameters for threat dynamics:
+        self.decay_factor = 0.9      # Decay factor for threat levels per timestep
+        self.attack_weight = 2.0     # How much a compromise increases threat
+        self.continuous_bonus = 0.3 # Bonus added if a host is continuously compromised
+        
+    def get_action(self, observation, *args, **kwargs):
+        self.timestep += 1
+        batch_size = observation.shape[0]
+        # Reshape observation: assume first 4*num_hosts entries correspond to host info
+        host_info = observation[:, :4 * self.num_hosts].reshape(-1, self.num_hosts, 4)
+        
+        # Define "compromised" as having either privileged access (index 1) or exploited (last index) 
+        # set to 1.
+        compromised = ((host_info[:, :, 1] == 1) | (host_info[:, :, -1] == 1)).astype(float)
+        
+        # Compute average compromise per host over the batch
+        compromised_avg = np.mean(compromised, axis=0)  # shape: (num_hosts,)
+        
+        # Update threat levels: decay the old threat and add new compromise signals
+        self.threat_levels = self.decay_factor * self.threat_levels + self.attack_weight * compromised_avg
+        
+        # Add a continuous bonus for hosts that are compromised in the majority of the batch
+        bonus_mask = (compromised_avg > 0.5).astype(float)
+        self.threat_levels += self.continuous_bonus * bonus_mask
+        
+        # For each sample in the batch, select an action if any host is compromised.
+        actions = np.zeros(batch_size)
+        for i in range(batch_size):
+            # For sample i, check which hosts are compromised.
+            compromised_hosts = np.where(compromised[i] == 1)[0]
+            if compromised_hosts.size > 0:
+                # Among the compromised hosts, choose the one with the highest threat level.
+                host_threats = self.threat_levels[compromised_hosts]
+                selected_host = compromised_hosts[np.argmax(host_threats)]
+                # The action is assumed to be "restore host" with index offset of 40.
+                actions[i] = selected_host + 40
+                # Reset the threat level for the restored host.
+                self.threat_levels[selected_host] = 0
+                self.last_restored[selected_host] = self.timestep
+            else:
+                # No host compromised: no restoration action (return 0)
+                actions[i] = 0
+        
+        return actions.reshape(-1, 1).astype(int)
+    
+
+
+class ProactiveDefender(Base_agent):
+    """
+    ProactiveDefender uses a risk-scoring mechanism for each host.
+    
+    It keeps a running "risk score" per host that:
+      - Increases when the host is compromised (based on observation indicators).
+      - Decays over time.
+      - Receives a bonus if the host is continuously compromised.
+    
+    When a host's risk score exceeds a threshold, the defender restores it.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reset()
+
+    def reset(self, *args, **kwargs):
+        self.num_hosts = 13
+        # Initialize risk scores for each host
+        self.risk_scores = np.zeros(self.num_hosts)
+        self.timestep = 0
+        # Hyperparameters for risk dynamics:
+        self.risk_increase_factor = 1.0   # Increase in risk per compromise unit
+        self.risk_decay_factor = 0.95     # Decay factor per timestep
+        self.hysteresis_bonus = 0.2       # Bonus if host is continuously compromised
+        self.restoration_threshold = 0.3  # Threshold above which restoration is triggered
+
+    def get_action(self, observation, *args, **kwargs):
+        self.timestep += 1
+        batch_size = observation.shape[0]
+        # Reshape observation: assuming first 4*num_hosts entries encode host info
+        host_info = observation[:, :4 * self.num_hosts].reshape(-1, self.num_hosts, 4)
+        
+        # Define "compromised" as having privileged access (index 1) or exploited (last index) set to 1.
+        compromised = ((host_info[:, :, 1] == 1) | (host_info[:, :, -1] == 1)).astype(float)
+        
+        # Compute average compromise per host across the batch
+        comp_avg = np.mean(compromised, axis=0)  # shape: (num_hosts,)
+        
+        # Update risk scores: decay old risk and add current compromise signal.
+        self.risk_scores = self.risk_scores * self.risk_decay_factor + self.risk_increase_factor * comp_avg
+        
+        # Add a bonus if a host is compromised by more than half the batch
+        continuous_compromise = (comp_avg > 0.5).astype(float)
+        self.risk_scores += self.hysteresis_bonus * continuous_compromise
+
+        # Initialize actions as zeros (no restoration action)
+        actions = np.zeros(batch_size)
+        
+        # For each sample in the batch, if any host has a risk score above threshold, restore the most risky one.
+        for i in range(batch_size):
+            # Find indices of hosts with risk above threshold
+            risky_hosts = np.where(self.risk_scores > self.restoration_threshold)[0]
+            if risky_hosts.size > 0:
+                # Among risky hosts, choose the one with the highest risk score.
+                chosen_host = risky_hosts[np.argmax(self.risk_scores[risky_hosts])]
+                # Set action to restore that host (assuming action = host index + 40)
+                actions[i] = chosen_host + 40
+                # Reset risk for the restored host
+                self.risk_scores[chosen_host] = 0
+            else:
+                actions[i] = 0
+
+        return actions.reshape(-1, 1).astype(int)
+    
+
+
+class ProactiveDefenderWithDecoys(Base_agent):
+    """
+    ProactiveDefenderWithDecoys uses a risk-scoring mechanism for each host to decide on
+    restoration actions and decoy placements. It increases a host's risk when compromised,
+    decays the risk over time, and deploys either a restoration or decoy action depending on 
+    the current risk level.
+
+    - Restoration: if risk exceeds the restoration_threshold, restore that host.
+    - Decoy: if risk is moderately high (>= decoy_threshold but < restoration_threshold), deploy a decoy.
+    
+    The restoration action is assumed to be host index + restoration_offset,
+    and the decoy action is assumed to be host index + decoy_offset.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reset()
+    
+    def reset(self, *args, **kwargs):
+        self.num_hosts = 13
+        self.risk_scores = np.zeros(self.num_hosts)
+        self.timestep = 0
+        # Hyperparameters for risk dynamics:
+        self.risk_increase_factor = 1.0    # Increase per unit compromise
+        self.risk_decay_factor = 0.95      # Risk decays by this factor each timestep
+        self.hysteresis_bonus = 0.2        # Bonus for continuous compromise
+        
+        # Thresholds for decision-making:
+        self.restoration_threshold = 0.3   # Restore if risk >= this
+        self.decoy_threshold = 0.15        # Deploy decoy if risk >= this but < restoration_threshold
+        
+        # Action offsets (adjust according to your environment's action space)
+        self.restoration_offset = 40       # Action = host index + 40 for restoration
+        self.decoy_offset = 14             # Action = host index + 14 for decoy deployment
+    
+    def get_action(self, observation, *args, **kwargs):
+        self.timestep += 1
+        batch_size = observation.shape[0]
+        # Reshape observation assuming first 4*num_hosts entries encode host info.
+        host_info = observation[:, :4 * self.num_hosts].reshape(-1, self.num_hosts, 4)
+        
+        # Determine compromised status: here, a host is considered compromised if either
+        # "privileged access" (index 1) or "exploited" (last index) equals 1.
+        compromised = ((host_info[:, :, 1] == 1) | (host_info[:, :, -1] == 1)).astype(float)
+        
+        # Compute average compromise per host across the batch.
+        comp_avg = np.mean(compromised, axis=0)  # shape: (num_hosts,)
+        
+        # Update risk scores: decay old risk and add current compromise signal.
+        self.risk_scores = self.risk_scores * self.risk_decay_factor + self.risk_increase_factor * comp_avg
+        
+        # Add bonus if a host is continuously compromised (e.g. compromised by >50% of observations).
+        continuous_compromise = (comp_avg > 0.5).astype(float)
+        self.risk_scores += self.hysteresis_bonus * continuous_compromise
+        
+        actions = np.zeros(batch_size)
+        
+        for i in range(batch_size):
+            # If any host exceeds the restoration threshold, choose the most risky one for restoration.
+            if np.any(self.risk_scores >= self.restoration_threshold):
+                risky_hosts = np.where(self.risk_scores >= self.restoration_threshold)[0]
+                chosen_host = risky_hosts[np.argmax(self.risk_scores[risky_hosts])]
+                actions[i] = chosen_host + self.restoration_offset
+                # Reset the risk for that host once restored.
+                self.risk_scores[chosen_host] = 0
+            # Otherwise, if any host has a risk above the decoy threshold, deploy a decoy.
+            elif np.any(self.risk_scores >= self.decoy_threshold):
+                decoy_hosts = np.where(self.risk_scores >= self.decoy_threshold)[0]
+                chosen_host = decoy_hosts[np.argmax(self.risk_scores[decoy_hosts])]
+                actions[i] = chosen_host + self.decoy_offset
+                # Optionally, reduce the risk score after deploying a decoy.
+                self.risk_scores[chosen_host] *= 0.5
+            else:
+                # No action if no host is sufficiently risky.
+                actions[i] = 0
+        
+        return actions.reshape(-1, 1).astype(int)
+
+
 
 
 if __name__ == '__main__':
         
-    from .minimal import SimplifiedCAGE
+    from minimal import SimplifiedCAGE
 
-    seed = 55749 # random.randint(1, 100000)
-    np.random.seed(seed)
+    seeds = range(10) # random.randint(1, 100000)
+    
 
     # initialise environment
     batch_size = 1
-    env = SimplifiedCAGE(num_envs=batch_size, num_nodes=13)
-    s, _ = env.reset()
+    env = SimplifiedCAGE(num_envs=batch_size)
+    for seed in seeds:
+        np.random.seed(seed)
+        s, _ = env.reset()
 
-    # initialise the agents 
-    red_agent = Meander_minimal()
-    blue_agent = Restore_decoys() 
+        # initialise the agents 
+        red_agent = Meander_minimal()
+        blue_agent = React_restore_minimal()
 
-    reward_log = []
-    actions = []
-    total_reward = np.zeros(batch_size)
-    for i in range(100):
-        print('###################')
+        reward_log = []
+        actions = []
+        total_reward = np.zeros(batch_size)
+        for i in range(1000):
+            #print('###################')
 
-        print(f"{i} - {s['Red']}")
+            #print(f"{i} - {s['Red']}")
 
-        #print(s['Blue'][:, :-26].reshape(s['Blue'].shape[0], -1, 4))
+            #print(s['Blue'][:, :-26].reshape(s['Blue'].shape[0], -1, 4))
 
-        blue_action = blue_agent.get_action(observation=s['Blue'])
-        red_action = red_agent.get_action(observation=s['Red']) 
-        print(f'Red: {red_action.reshape(-1)} - Blue: {blue_action.reshape(-1)}')
-        s, r, d, i = env.step(
-            blue_action=blue_action, red_action=red_action)
-        total_reward += r['Blue'].reshape(-1)
-        reward_log.append(r['Blue'].reshape(-1))
-        print('Reward ', r['Blue'])
-        print(actions.append(red_action[0]))
+            blue_action = blue_agent.get_action(observation=s['Blue'])
+            red_action = red_agent.get_action(observation=s['Red']) 
+            #print(f'Red: {red_action.reshape(-1)} - Blue: {blue_action.reshape(-1)}')
+            s, r, d, i = env.step(
+                blue_action=blue_action, red_action=red_action)
+            total_reward += r['Blue'].reshape(-1)
+            reward_log.append(r['Blue'].reshape(-1))
+            #print('Reward ', r['Blue'])
+            #print(actions.append(red_action[0]))
 
 
-    print(actions)
-    print(f'Total Reward: {total_reward}' )
-    print(np.stack(reward_log, axis=-1))
-    print('SEED', seed)
+        #print(actions)
+        print(f'Total Reward: {total_reward}' )
+        #print(np.stack(reward_log, axis=-1))
+        #print('SEED', seed)
             
 
 
