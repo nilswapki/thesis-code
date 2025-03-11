@@ -18,11 +18,18 @@ from torchkit.pytorch_utils import set_gpu_mode
 from policies.learner import Learner
 from policies.learner_regular import LearnerRegular
 from envs.make_env import make_env
-from plotting import plot_feature
+from plotting import plot_feature, aggregate_main_metrics
+
+mig_devices = [
+    "MIG-e5bb0672-753a-5707-b8e3-afbf24f6375a",
+    "MIG-d221f560-4f89-5ae7-ba27-719dcf6f0bfb",
+    "MIG-40e6fded-589b-59d4-9a87-f12feff6b50b",
+    "MIG-b2ca0a8b-c8bc-5072-bbd3-ed23965d4c7b"
+]  # export CUDA_VISIBLE_DEVICES=
 
 if torch.cuda.is_available():  # if running on work computer
     os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1/2/0"  # GPU 1, GPU Instance 2 (or 3, 9, 10), and Compute Instance 0 --> first partition of A100
+    #os.environ["CUDA_VISIBLE_DEVICES"] = mig_devices[0] #"1/9/0"  # GPU 1, GPU Instance 2 (or 3, 9, 10), and Compute Instance 0 --> first partition of A100
 
 
 FLAGS = flags.FLAGS
@@ -36,7 +43,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_rl",
-    "configs/rl/ppo2_default.py",
+    "configs/rl/dqn_default.py",
     "File path to the RL algorithm configuration.",
     lock_config=False,
 )
@@ -57,11 +64,11 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_list("seeds", [1, 2, 3, 4], "Random seed.")
+flags.DEFINE_list("seeds", [1, 2, 3], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
 flags.DEFINE_integer("train_episodes", 1000, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
-flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")
+flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")  # TODO
 
 # logging settings
 flags.DEFINE_boolean("debug", False, "debug mode")
@@ -83,9 +90,10 @@ def main(argv):
         config_rl, config_env.env_name, max_training_steps
     )
 
-    #set_gpu_mode((torch.cuda.is_available()))
-    set_gpu_mode((torch.cuda.is_available() or torch.backends.mps.is_available())
+    gpu_mode_bool = ((torch.cuda.is_available() or torch.backends.mps.is_available())
                 and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
+    #set_gpu_mode((torch.cuda.is_available()))
+    set_gpu_mode(mode=gpu_mode_bool)
 
     uid = f"{system.now_str()}"  # +{jobid}-{pid}
     
@@ -126,14 +134,17 @@ def main(argv):
         learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
         learner.train()
 
+
     if FLAGS.train_episodes > config_env.eval_interval:
         features = ['return', 'return_eval', 'critic_loss']
     else:
         features = ['return', 'critic_loss']
     for feature in features:
         plot_feature(folder_path=f"logs/{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/{uid}/", feature=feature)
+    
+    aggregate_main_metrics(folder_path=f"logs/{config_env.env_type}/{config_env.env_name}/{config_seq.model.seq_model_config.name}/{uid}/")
 
 
 if __name__ == "__main__":
-
+    
     app.run(main)

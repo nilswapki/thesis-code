@@ -96,7 +96,7 @@ _use_gpu = False
 device = None
 
 
-def set_gpu_mode(mode, gpu_id=0):
+def set_gpu_mode(mode, gpu_id=0, mig_device_id=None):
     global _use_gpu
     global device
     global _gpu_id
@@ -107,6 +107,17 @@ def set_gpu_mode(mode, gpu_id=0):
     if torch.backends.mps.is_available():
         device = torch.device("mps" if _use_gpu else "cpu")
     else:
+        # Set the environment variable for MIG device if using one
+        if mig_device_id is not None:
+            # MIG device can be specified by UUID
+            os.environ["CUDA_VISIBLE_DEVICES"] = mig_device_id
+            
+        elif _use_gpu:
+            pass
+        else:
+            # CPU fallback
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        
         device = torch.device(f"cuda:{gpu_id}" if _use_gpu else "cpu")
 
 

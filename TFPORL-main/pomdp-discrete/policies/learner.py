@@ -204,7 +204,7 @@ class Learner:
                 ):
                     # save models in later training stage
                     self.save_model(current_num_iters, trajs, perf)
-        #self.save_model(current_num_iters, trajs, perf)
+        self.save_model(current_num_iters, trajs, perf)
 
     @torch.no_grad()
     def collect_rollouts(self, num_rollouts, random_actions=False):

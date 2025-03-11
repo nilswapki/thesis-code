@@ -114,6 +114,128 @@ def parse_flags(file_path):
     return extracted
 
 
+def aggregate_main_metrics(folder_path, window_size=10):
+    """
+    Aggregates main metrics from progress CSV files across seeds.
+    Computes statistics like overall mean, standard deviation,
+    final values, max, min, and median. Saves the aggregated metrics to a text file
+    in the folder_path.
+    """
+    # Define the groups of features and a mapping to human-friendly names.
+    train_features = ["env_steps", "return", "invalid_actions_blue", "invalid_actions_red", "length", "FPS", "time", "restorations", "infiltrations"]
+    eval_features = ["env_steps_eval", "return_eval", "invalid_actions_blue_eval", "invalid_actions_red_eval", "length_eval", "FPS_eval", "time_eval", "restorations_eval", "infiltrations_eval"]
+    stats_features = ["env_steps", "critic_loss", "q", "critic_grad_norm", "critic_seq_grad_norm"]
+
+    feature_mapping = {
+        "env_steps": "Environment Steps",
+        "return": "Reward",
+        "invalid_actions_blue": "Invalid Actions (Blue)",
+        "invalid_actions_red": "Invalid Actions (Red)",
+        "restorations": "Unnecessary Restorations",
+        "infiltrations": "Infiltrations",
+        "length": "Episode Length",
+        "FPS": "Frames per Second",
+        "time": "Training Time",
+        "env_steps_eval": "Environment Steps Eval",
+        "return_eval": "Reward Eval",
+        "invalid_actions_blue_eval": "Invalid Actions (Blue) Eval",
+        "invalid_actions_red_eval": "Invalid Actions (Red) Eval",
+        "restorations_eval": "Unnecessary Restorations Eval",
+        "infiltrations_eval": "Infiltrations Eval",
+        "length_eval": "Episode Length Eval",
+        "FPS_eval": "Frames per Second Eval",
+        "time_eval": "Training Time Eval",
+        "critic_loss": "Critic Loss",
+        "q": "Q-Value",
+        "critic_grad_norm": "Critic Gradient Norm",
+        "critic_seq_grad_norm": "Sequential Critic Gradient Norm"
+    }
+
+    # Combine all features into one list.
+    all_features = list(set(train_features + eval_features + stats_features))
+    
+    # Find subfolders (each assumed to be a seed folder)
+    subfolders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
+    
+    # Parse configuration from the first subfolder to create a save name.
+    config_file = os.path.join(folder_path, subfolders[0], "flags.txt")
+    config_dict = parse_flags(config_file)
+    save_name = f'{config_dict["env_type"]}-{config_dict["train_episodes"]}-{config_dict["algo"]}-{config_dict["sequential_model"]}-{config_dict["seeds"]}'
+
+    # Dictionary to store aggregated results for each feature.
+    aggregated_results = {}
+
+    # Process each feature across all seeds.
+    for feature in all_features:
+        # Choose the correct CSV file based on the feature category.
+        if feature in train_features:
+            file = 'progress_train.csv'
+        elif feature in eval_features:
+            file = 'progress_eval.csv'
+        elif feature in stats_features:
+            file = 'progress_stats.csv'
+        else:
+            continue
+        
+        # List to collect the feature data (as a smoothed Series) for each seed.
+        feature_data_list = []
+
+        for subfolder in subfolders:
+            csv_path = os.path.join(folder_path, subfolder, file)
+            data_seed = load_csv(csv_path)
+            if data_seed is not None and feature in data_seed.columns:
+                entries = data_seed[feature]
+                # Apply rolling smoothing.
+                smoothed = entries.rolling(window=window_size, min_periods=1).mean()
+                feature_data_list.append(smoothed)
+        
+        # Only aggregate if we got data from at least one seed.
+        if feature_data_list:
+            # Align all series to the maximum length among seeds.
+            max_length = max(len(series) for series in feature_data_list)
+            aligned_series = [series.reindex(range(max_length), fill_value=np.nan) for series in feature_data_list]
+            df_combined = pd.concat(aligned_series, axis=1)
+            
+            # Compute metrics along the episode axis.
+            mean_series = df_combined.mean(axis=1)
+            std_series = df_combined.std(axis=1)
+            final_values = df_combined.iloc[-1, :]  # Last entry from each seed.
+            
+            aggregated_results[feature] = {
+                "Feature Name": feature_mapping.get(feature, feature),
+                "Overall Mean (Avg over Episodes)": np.nanmean(mean_series),
+                "Overall Std (Avg over Episodes)": np.nanmean(std_series),
+                "Final Mean (Last Episode)": np.nanmean(final_values),
+                "Final Std": np.nanstd(final_values),
+                "Max Mean": np.nanmax(mean_series),
+                "Min Mean": np.nanmin(mean_series),
+                "Median Mean": np.nanmedian(mean_series)
+            }
+
+    # Build output text from aggregated metrics.
+    output_lines = []
+    output_lines.append(f"Aggregated Metrics for {save_name}\n")
+    for feature, metrics in aggregated_results.items():
+        output_lines.append(f"Feature: {metrics['Feature Name']} ({feature})")
+        output_lines.append(f"  Overall Mean (Avg over Episodes): {metrics['Overall Mean (Avg over Episodes)']:.4f}")
+        output_lines.append(f"  Overall Std (Avg over Episodes): {metrics['Overall Std (Avg over Episodes)']:.4f}")
+        output_lines.append(f"  Final Mean (Last Episode): {metrics['Final Mean (Last Episode)']:.4f}")
+        output_lines.append(f"  Final Std: {metrics['Final Std']:.4f}")
+        output_lines.append(f"  Max Mean: {metrics['Max Mean']:.4f}")
+        output_lines.append(f"  Min Mean: {metrics['Min Mean']:.4f}")
+        output_lines.append(f"  Median Mean: {metrics['Median Mean']:.4f}")
+        output_lines.append("")  # blank line between features
+
+    # Save the aggregated metrics to a text file in the same location as the plots.
+    output_path = os.path.join(folder_path, f"{save_name}_aggregated_metrics.txt")
+    with open(output_path, "w") as f:
+        f.write("\n".join(output_lines))
+
+    print(f"Aggregated metrics saved to {output_path}")
+    return aggregated_results
+
+
+
 def plot_feature(folder_path, feature, window_size=10):
     data = []
 
@@ -224,9 +346,10 @@ def load_csv(path):
 
 
 if __name__ == '__main__':
-    folder_path = 'TFPORL-main/pomdp-discrete/logs/mini-cage/100/lstm/2025-03-07-14:46:59'
+    folder_path = 'TFPORL-main/pomdp-discrete/logs_results/mini-cage/param_search/dqn-params/discount_exploration/discount-99_se07/'
 
-    plot_feature(folder_path=folder_path, feature='return')
+    #plot_feature(folder_path=folder_path, feature='return')
+    aggregate_main_metrics(folder_path=folder_path)
 
 
  
