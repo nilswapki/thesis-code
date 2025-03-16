@@ -25,7 +25,7 @@ mig_devices = [
     "MIG-d221f560-4f89-5ae7-ba27-719dcf6f0bfb",
     "MIG-40e6fded-589b-59d4-9a87-f12feff6b50b",
     "MIG-b2ca0a8b-c8bc-5072-bbd3-ed23965d4c7b"
-]  # export CUDA_VISIBLE_DEVICES=
+]  # export CUDA_VISIBLE_DEVICES=MIG-d221f560-4f89-5ae7-ba27-719dcf6f0bfb
 
 if torch.cuda.is_available():  # if running on work computer
     os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
@@ -50,7 +50,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/mlp_default.py",
+    "configs/seq_models/mamba_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
