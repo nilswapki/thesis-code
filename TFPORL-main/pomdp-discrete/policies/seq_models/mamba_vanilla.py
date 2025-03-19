@@ -10,7 +10,9 @@ class Mamba(nn.Module):
         input_size,
         hidden_size,
         n_layer,
-        max_seq_length,  
+        max_seq_length,
+        dropout=0.1,
+        residual=0.15,
         **kwargs
     ):
         super().__init__()
@@ -21,6 +23,8 @@ class Mamba(nn.Module):
             horizon=max_seq_length,
             d_model=hidden_size,
             n_layers=n_layer,
+            dropout_p=dropout,
+            residual=residual
         )
         self.hidden_size = hidden_size
         

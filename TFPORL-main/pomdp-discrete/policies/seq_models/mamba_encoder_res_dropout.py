@@ -50,14 +50,14 @@ class Normalization(nn.Module):
 
 
 class _MambaBlock(nn.Module):
-    def __init__(self, d_model: int, d_state: int, d_conv: int, expand: int, norm: str):
+    def __init__(self, d_model: int, d_state: int, d_conv: int, expand: int, norm: str, residual: float):
         super().__init__()
         self.norm = Normalization(norm, d_model)
         self.mamba = Mamba(
             d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
         )
         # Introduce a learnable scaling parameter for the residual output.
-        self.res_scale = nn.Parameter(torch.tensor(0.1), requires_grad=True)
+        self.res_scale = nn.Parameter(torch.tensor(residual), requires_grad=True)
 
     def forward(self, seq):
         normalized_seq = self.norm(seq)
@@ -108,7 +108,8 @@ class MambaTrajEncoder(TrajEncoder):
         expand: int = 2,
         n_layers: int = 3,
         norm: str = "layer",
-        dropout_p: float = 0.1  # New dropout parameter for input regularization.
+        dropout_p: float = 0.1,  # New dropout parameter for input regularization
+        residual: float = 0.1  # New residual parameter for input regularization
     ):
         super().__init__(tstep_dim, max_seq_len, horizon)
         assert Mamba is not None, "Missing Mamba installation (pip install amago[mamba])"
@@ -124,6 +125,7 @@ class MambaTrajEncoder(TrajEncoder):
                     d_conv=d_conv,
                     expand=expand,
                     norm=norm,
+                    residual=residual
                 )
                 for _ in range(n_layers)
             ]

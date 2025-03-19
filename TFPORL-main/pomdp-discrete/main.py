@@ -66,7 +66,7 @@ flags.DEFINE_boolean(
 # training settings
 flags.DEFINE_list("seeds", [1], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 2000, "Number of episodes during training.")
+flags.DEFINE_integer("train_episodes", 5000, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
 flags.DEFINE_integer("start_training", 10, "Number of episodes to start training.")
 

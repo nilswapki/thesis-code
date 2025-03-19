@@ -403,15 +403,16 @@ class Learner:
         return rl_losses_agg
 
     @torch.no_grad()
-    def evaluate(self, deterministic=True):
+    def evaluate(self, deterministic=True, episodes=None):
         self.agent.eval()  # set to eval mode for deterministic dropout
         print("Evaluating")
-        returns_per_episode = np.zeros(self.config_env.eval_episodes)
-        success_rate = np.zeros(self.config_env.eval_episodes)
-        total_steps = np.zeros(self.config_env.eval_episodes)
+        num_episodes = self.config_env.eval_episodes if episodes is None else episodes
+        returns_per_episode = np.zeros(num_episodes)
+        success_rate = np.zeros(num_episodes)
+        total_steps = np.zeros(num_episodes)
         trajs = []
 
-        for task_idx in range(self.config_env.eval_episodes):
+        for task_idx in range(num_episodes):
             step = 0
             running_reward = 0.0
             done_rollout = False

@@ -41,6 +41,9 @@ def get_config():
     config.max_norm = 0.5
     config.use_l2_norm = True
 
+    config.dropout = 0.15  # needs to be adjusted in Mamba init itself!
+    config.residual = 0.15  # needs to be adjusted in Mamba init itself!
+
     # fed into Module
     config.model = ConfigDict()
 
