@@ -3,6 +3,7 @@ from gym import spaces
 import numpy as np
 import networkx as nx
 import random
+import math
 from collections import deque
 import matplotlib.pyplot as plt
 
@@ -94,6 +95,79 @@ class NetworkDefenderEnv(gym.Env):
             neighbors.append(neigh)
         return adj, neighbors
 
+    def is_freestanding(self, node):
+        """
+        Check if a node is freestanding, meaning that none of its neighbors
+        (except possibly the starting infiltrated node) are infiltrated.
+        """
+        # Here, a node is considered freestanding if all its neighbors
+        # are not infiltrated.
+        for neighbor in self.neighbors[node]:
+            if self.infiltrated[neighbor] > 0:
+                return False
+        return True
+
+    def dfs_longest_path(self, current, visited):
+        """
+        Recursively search for the longest path starting from 'current'
+        that only visits nodes that are not infiltrated and are freestanding.
+
+        Args:
+            graph (nx.Graph): The input graph.
+            current (node): The current node.
+            visited (set): Nodes already visited in this path.
+            infiltrated (dict): Mapping from node to infiltration value.
+
+        Returns:
+            list: The longest valid path (as a list of nodes) starting at 'current'.
+        """
+        best_path = [current]
+        for neighbor in self.neighbors[current]:
+            if neighbor in visited:
+                continue
+            # We only allow neighbors that are not infiltrated...
+            if self.infiltrated[neighbor] > 0:
+                continue
+            # ...and that are freestanding (none of their neighbors are infiltrated).
+            if not self.is_freestanding(neighbor):
+                continue
+
+            # Explore deeper from this neighbor.
+            new_visited = visited | {neighbor}
+            candidate_path = self.dfs_longest_path(neighbor, new_visited)
+            if len(candidate_path) + 1 > len(best_path):
+                best_path = [current] + candidate_path
+        return best_path
+
+    def find_longest_freestanding_path(self):
+        """
+        Find the longest path in 'graph' starting from an infiltrated node and
+        going only over non-infiltrated nodes that are freestanding (none of their
+        neighbors are infiltrated).
+
+        Args:
+            graph (nx.Graph): The graph.
+            infiltrated (dict): Mapping from node to infiltration status/number.
+
+        Returns:
+            list: The longest path found, as a list of nodes.
+        """
+        best_overall = []
+        # Iterate over every node that is already infiltrated.
+        for node in self.graph.nodes():
+            if self.infiltrated[node] > 0:
+                # For each neighbor of the infiltrated node, if it's not infiltrated
+                # and is freestanding, try to build a path from it.
+                for neighbor in self.neighbors[node]:
+                    if self.infiltrated[neighbor] == 0 and self.is_freestanding(neighbor):
+                        # Use a visited set that initially includes the starting infiltrated node
+                        # (to avoid stepping back to it) and the neighbor.
+                        path = self.dfs_longest_path(self, neighbor, {node, neighbor})
+                        if len(path) > len(best_overall):
+                            best_overall = path
+        return best_overall
+
+
     def _update_sensor_reading(self):
         """
         Returns a sensor reading for each node.
@@ -144,15 +218,15 @@ class NetworkDefenderEnv(gym.Env):
         # 0:n_nodes-1: Restore node
         # n_nodes: Do nothing
         if action != self.n_nodes:
-            # If node to be restored is actually infiltrated, restore it.
-            if (action != self.initial_attacker_node) and (self.infiltrated[action] > 0): # cannot restore the initial foothold of the attacker
+            # If node to be restored is actually infiltrated, restore it
+            if (action != self.initial_attacker_node) and (self.infiltrated[action] > 0):  # cannot restore the initial foothold of the attacker
                 reward += (2 / self.infiltrated[action])
                 self.infiltrated[action] = 0
-            # If node to be restored is passively infiltrated, restore it.
+            # If node to be restored is passively infiltrated, restore it
             elif self.recursive and (action != self.initial_attacker_node) and (action in self.passively_infiltrated):
                 self.infiltrated[action] = 0
                 self.passively_infiltrated.remove(action)
-                reward += 0.1
+                reward += 0.5
             # If node to be restored is not actively or passively infiltrated, penalize.
             else:
                 reward -= 1
@@ -162,17 +236,17 @@ class NetworkDefenderEnv(gym.Env):
                 # check for every infiltrated node if there still is a path to the initial foothold, if not, restore it
                 for node in range(self.n_nodes):
                     if self.infiltrated[node] > 0:
-                        # if infiltrated node is cut off from the other infiltrated nodes, restore it
+                        # if infiltrated node is cut off from initial foothold, restore it
                         if not nx.has_path(self.graph.subgraph(np.where(self.infiltrated > 0)[0]), node, self.initial_attacker_node):
-                            # reset the node
-                            self.infiltrated[node] = 0
-                            reward += 0.1
+                            reward += (2 / self.infiltrated[node])
+                            self.infiltrated[node] = 0  # reset the node
                             # add the node to a list of passively infiltrated nodes (attacker still has knowledge)
                             self.passively_infiltrated.append(node)
 
         # -------- Attacker --------
-        # only move every third step
-        if self.timestep % 2 == 0:
+        # on average, the attacker infiltrates a new node every two timesteps
+        # draw from poisson distribution to allow the attacker to potentially infiltrate several times in one timestep
+        for i in range(np.random.poisson(0.5)):
 
             # obtain all nodes adjacent to infiltrated nodes
             adj_nodes = []
@@ -211,10 +285,12 @@ class NetworkDefenderEnv(gym.Env):
                 for node in self.passively_infiltrated:
                     if nx.has_path(self.graph.subgraph(np.where((self.infiltrated > 0) | (np.isin(np.arange(self.n_nodes), self.passively_infiltrated)))[0]), node, self.initial_attacker_node):
                         self.passively_infiltrated.remove(node)
-                        self.infiltrated[node] = 1
+                        self.infiltrated[node] = 10
 
         # reward is the negative sum of all infiltrated nodes --> confuses the agent
         #reward -= (np.sum(self.infiltrated > 0) - 1) * 0.1  # dont give negative reward for initial foothold
+
+
 
         # End episode if maximum timesteps reached.
         if self.timestep >= self.episode_length:

@@ -279,7 +279,8 @@ def plot_feature(folder_path, feature, window_size=10):
         return -1
 
     feature_name = feature_mapping.get(feature, feature)
-
+    print(type(os))
+    print(os)
     # Check if the folder contains subfolders (multiple seeds) or directly the files
     subfolders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
 
@@ -337,6 +338,135 @@ def plot_feature(folder_path, feature, window_size=10):
     return plt.gcf()
 
 
+def plot_models(superfolder_path, feature, window_size=10):
+    """
+    Plots a comparison of a given feature across different models.
+    Each model folder in the superfolder should contain seed subfolders
+    with the CSV logs.
+
+    Args:
+        superfolder_path (str): Path to the superfolder containing model folders.
+        feature (str): The feature to plot.
+        window_size (int): Smoothing window size for rolling average.
+    """
+    # Mapping from CSV feature names to human-readable names.
+    feature_mapping = {
+        "env_steps": "Environment Steps",
+        "return": "Reward",
+        "invalid_actions_blue": "Invalid Actions (Blue)",
+        "invalid_actions_red": "Invalid Actions (Red)",
+        "restorations": "Unnecessary Restorations",
+        "infiltrations": "Infiltrations",
+        "length": "Episode Length",
+        "FPS": "Frames per Second",
+        "time": "Training Time",
+        "env_steps_eval": "Environment Steps Eval",
+        "return_eval": "Reward Eval",
+        "invalid_actions_blue_eval": "Invalid Actions (Blue) Eval",
+        "invalid_actions_red_eval": "Invalid Actions (Red) Eval",
+        "restorations_eval": "Unnecessary Restorations Eval",
+        "infiltrations_eval": "Infiltrations Eval",
+        "length_eval": "Episode Length Eval",
+        "FPS_eval": "Frames per Second Eval",
+        "time_eval": "Training Time Eval",
+        "critic_loss": "Critic Loss",
+        "q": "Q-Value",
+        "critic_grad_norm": "Critic Gradient Norm",
+        "critic_seq_grad_norm": "Sequential Critic Gradient Norm"
+    }
+
+    # Determine which CSV file to load based on feature group.
+    train_features = ["env_steps", "return", "invalid_actions_blue", "invalid_actions_red",
+                      "length", "FPS", "time", "restorations", "infiltrations"]
+    eval_features = ["env_steps_eval", "return_eval", "invalid_actions_blue_eval", "invalid_actions_red_eval",
+                     "length_eval", "FPS_eval", "time_eval", "restorations_eval", "infiltrations_eval"]
+    stats_features = ["env_steps", "critic_loss", "q", "critic_grad_norm", "critic_seq_grad_norm"]
+
+    if feature in train_features:
+        csv_file = 'progress_train.csv'
+    elif feature in eval_features:
+        csv_file = 'progress_eval.csv'
+    elif feature in stats_features:
+        csv_file = 'progress_stats.csv'
+    else:
+        print(f"Unknown Feature: {feature}")
+        return None
+
+    feature_name = feature_mapping.get(feature, feature)
+
+    # Each model should have its own folder inside the superfolder.
+    model_folders = [d for d in os.listdir(superfolder_path)
+                     if os.path.isdir(os.path.join(superfolder_path, d))]
+
+    if not model_folders:
+        print("No model folders found in the superfolder.")
+        return None
+
+    plt.figure(figsize=(12, 7))
+    plt.tight_layout()
+
+    # Get a colormap to assign distinct colors to each model.
+    colors = plt.cm.tab10.colors
+
+    # Loop over each model folder.
+    for i, model_folder in enumerate(sorted(model_folders)):
+        model_path = os.path.join(superfolder_path, model_folder)
+        # Each model folder should have seed subfolders.
+        seed_folders = [d for d in os.listdir(model_path)
+                        if os.path.isdir(os.path.join(model_path, d))]
+
+        model_data = []
+        for seed_folder in seed_folders:
+            csv_path = os.path.join(model_path, seed_folder, csv_file)
+            if os.path.exists(csv_path):
+                try:
+                    df = pd.read_csv(csv_path, comment='#')
+                    model_data.append(df)
+                except Exception as e:
+                    print(f"Error reading {csv_path}: {e}")
+
+        if len(model_data) == 0:
+            print(f"No valid data found for model {model_folder}")
+            continue
+
+        all_entries = []
+        all_smoothed_entries = []
+        max_length = max(len(seed_data[feature]) for seed_data in model_data)
+
+        for seed_data in model_data:
+            entries = seed_data[feature]
+            smoothed_entries = entries.rolling(window=window_size, min_periods=1).mean()
+
+            all_entries.append(entries.reindex(range(max_length), fill_value=np.nan))
+            all_smoothed_entries.append(smoothed_entries.reindex(range(max_length), fill_value=np.nan))
+
+        # Aggregate across seeds for this model.
+        mean_smoothed = pd.concat(all_smoothed_entries, axis=1).mean(axis=1)
+        std_smoothed = pd.concat(all_smoothed_entries, axis=1).std(axis=1)
+
+        # Plot the aggregated mean and std for the model.
+        color = colors[i % len(colors)]
+        plt.plot(mean_smoothed, color=color, linewidth=2,
+                 label=f'{model_folder} {feature_name}')
+        plt.fill_between(range(max_length),
+                         mean_smoothed - std_smoothed,
+                         mean_smoothed + std_smoothed,
+                         color=color, alpha=0.3)
+
+    # Final plot settings.
+    plt.xlabel('Episodes', fontsize=14)
+    plt.ylabel(feature_name, fontsize=14)
+    plt.title(f'{feature_name} Over Time Comparison Across Models', fontsize=16)
+    plt.legend(fontsize=12)
+    plt.grid(color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
+    plt.gca().set_facecolor('whitesmoke')
+
+    save_path = os.path.join(superfolder_path, f'comparison_{feature_name}.png')
+    plt.savefig(save_path)
+    print(f"Saved comparison plot to {save_path}")
+    return plt.gcf()
+
+
 def load_csv(path):
     try:
         return pd.read_csv(path, comment='#')
@@ -346,10 +476,11 @@ def load_csv(path):
 
 
 if __name__ == '__main__':
-    folder_path = 'TFPORL-main/pomdp-discrete/logs_results/mini-cage/param_search/dqn-params/discount_exploration/discount-99_se07/'
+    folder_path = 'logs/network-defender/100/mlp/2025-03-17-20:09:39/'
 
-    #plot_feature(folder_path=folder_path, feature='return')
-    aggregate_main_metrics(folder_path=folder_path)
+    #plot_models(folder_path, feature='critic_loss', window_size=1)
+    plot_feature(folder_path=folder_path, feature='return')
+    #aggregate_main_metrics(folder_path=folder_path)
 
 
  
