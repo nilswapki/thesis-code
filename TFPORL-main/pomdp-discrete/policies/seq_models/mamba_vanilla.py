@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torchkit.pytorch_utils as ptu
-from policies.seq_models.mamba_encoder import MambaTrajEncoder
+from policies.seq_models.mamba_encoder_res_dropout import MambaTrajEncoder
 
 class Mamba(nn.Module):
     name = 'mamba'

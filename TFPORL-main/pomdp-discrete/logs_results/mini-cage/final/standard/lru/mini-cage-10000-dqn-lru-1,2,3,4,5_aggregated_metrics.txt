@@ -1,0 +1,154 @@
+Aggregated Metrics for mini-cage-10000-dqn-lru-1,2,3,4,5
+
+Feature: Episode Length Eval (length_eval)
+  Overall Mean (Avg over Episodes): 100.0000
+  Overall Std (Avg over Episodes): 0.0000
+  Final Mean (Last Episode): 100.0000
+  Final Std: 0.0000
+  Max Mean: 100.0000
+  Min Mean: 100.0000
+  Median Mean: 100.0000
+
+Feature: Critic Loss (critic_loss)
+  Overall Mean (Avg over Episodes): 0.1583
+  Overall Std (Avg over Episodes): 0.0174
+  Final Mean (Last Episode): 0.0604
+  Final Std: 0.0033
+  Max Mean: 11.1724
+  Min Mean: 0.0603
+  Median Mean: 0.1113
+
+Feature: Invalid Actions (Blue) Eval (invalid_actions_blue_eval)
+  Overall Mean (Avg over Episodes): 0.0098
+  Overall Std (Avg over Episodes): 0.0063
+  Final Mean (Last Episode): 0.0010
+  Final Std: 0.0011
+  Max Mean: 0.0560
+  Min Mean: 0.0000
+  Median Mean: 0.0008
+
+Feature: Q-Value (q)
+  Overall Mean (Avg over Episodes): -4.8704
+  Overall Std (Avg over Episodes): 0.1252
+  Final Mean (Last Episode): -1.6199
+  Final Std: 0.0254
+  Max Mean: -1.6162
+  Min Mean: -15.3691
+  Median Mean: -3.3565
+
+Feature: Training Time (time)
+  Overall Mean (Avg over Episodes): 10.9684
+  Overall Std (Avg over Episodes): 3.7548
+  Final Mean (Last Episode): 9.2124
+  Final Std: 3.7004
+  Max Mean: 17.1558
+  Min Mean: 1.1103
+  Median Mean: 10.7358
+
+Feature: Invalid Actions (Red) (invalid_actions_red)
+  Overall Mean (Avg over Episodes): 0.0000
+  Overall Std (Avg over Episodes): 0.0000
+  Final Mean (Last Episode): 0.0000
+  Final Std: 0.0000
+  Max Mean: 0.0000
+  Min Mean: 0.0000
+  Median Mean: 0.0000
+
+Feature: Episode Length (length)
+  Overall Mean (Avg over Episodes): 100.0000
+  Overall Std (Avg over Episodes): 0.0000
+  Final Mean (Last Episode): 100.0000
+  Final Std: 0.0000
+  Max Mean: 100.0000
+  Min Mean: 100.0000
+  Median Mean: 100.0000
+
+Feature: Reward (return)
+  Overall Mean (Avg over Episodes): -49.8848
+  Overall Std (Avg over Episodes): 6.6117
+  Final Mean (Last Episode): -1.9220
+  Final Std: 0.2399
+  Max Mean: -0.3440
+  Min Mean: -663.1734
+  Median Mean: -3.6020
+
+Feature: Training Time Eval (time_eval)
+  Overall Mean (Avg over Episodes): 18.1122
+  Overall Std (Avg over Episodes): 6.2762
+  Final Mean (Last Episode): 17.2550
+  Final Std: 6.3528
+  Max Mean: 19.6611
+  Min Mean: 17.2457
+  Median Mean: 17.6011
+
+Feature: Invalid Actions (Red) Eval (invalid_actions_red_eval)
+  Overall Mean (Avg over Episodes): 0.0000
+  Overall Std (Avg over Episodes): 0.0000
+  Final Mean (Last Episode): 0.0000
+  Final Std: 0.0000
+  Max Mean: 0.0000
+  Min Mean: 0.0000
+  Median Mean: 0.0000
+
+Feature: Frames per Second (FPS)
+  Overall Mean (Avg over Episodes): 10.8863
+  Overall Std (Avg over Episodes): 6.3470
+  Final Mean (Last Episode): 11.4808
+  Final Std: 6.3268
+  Max Mean: 89.6459
+  Min Mean: 0.0000
+  Median Mean: 11.7619
+
+Feature: Sequential Critic Gradient Norm (critic_seq_grad_norm)
+  Overall Mean (Avg over Episodes): 1.2594
+  Overall Std (Avg over Episodes): 0.4364
+  Final Mean (Last Episode): 0.3620
+  Final Std: 0.0677
+  Max Mean: 4.6525
+  Min Mean: 0.3193
+  Median Mean: 0.8228
+
+Feature: Environment Steps (env_steps)
+  Overall Mean (Avg over Episodes): 500000.2248
+  Overall Std (Avg over Episodes): 0.0000
+  Final Mean (Last Episode): 1000450.0000
+  Final Std: 0.0000
+  Max Mean: 1000450.0000
+  Min Mean: 0.0000
+  Median Mean: 500000.0000
+
+Feature: Critic Gradient Norm (critic_grad_norm)
+  Overall Mean (Avg over Episodes): 1.1641
+  Overall Std (Avg over Episodes): 0.3490
+  Final Mean (Last Episode): 0.3523
+  Final Std: 0.0595
+  Max Mean: 4.2874
+  Min Mean: 0.3503
+  Median Mean: 0.7761
+
+Feature: Frames per Second Eval (FPS_eval)
+  Overall Mean (Avg over Episodes): 6.9313
+  Overall Std (Avg over Episodes): 4.6013
+  Final Mean (Last Episode): 7.8467
+  Final Std: 5.6472
+  Max Mean: 7.8624
+  Min Mean: 5.4682
+  Median Mean: 7.7441
+
+Feature: Invalid Actions (Blue) (invalid_actions_blue)
+  Overall Mean (Avg over Episodes): 0.0197
+  Overall Std (Avg over Episodes): 0.0042
+  Final Mean (Last Episode): 0.0020
+  Final Std: 0.0009
+  Max Mean: 0.1278
+  Min Mean: 0.0000
+  Median Mean: 0.0024
+
+Feature: Reward Eval (return_eval)
+  Overall Mean (Avg over Episodes): -18.7723
+  Overall Std (Avg over Episodes): 4.6069
+  Final Mean (Last Episode): -1.1820
+  Final Std: 2.0264
+  Max Mean: -0.4440
+  Min Mean: -171.1150
+  Median Mean: -1.1565
