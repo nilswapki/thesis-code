@@ -38,8 +38,8 @@ def get_config():
     config.sampled_seq_len = -1
 
     config.clip = False
-    config.max_norm = 1.0
-    config.use_l2_norm = False
+    config.max_norm = 0.5
+    config.use_l2_norm = True
 
     # fed into Module
     config.model = ConfigDict()
