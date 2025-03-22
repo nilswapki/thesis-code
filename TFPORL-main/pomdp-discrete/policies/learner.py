@@ -411,8 +411,11 @@ class Learner:
         success_rate = np.zeros(num_episodes)
         total_steps = np.zeros(num_episodes)
         trajs = []
+        infos = []
 
         for task_idx in range(num_episodes):
+            if task_idx % 10 == 0 and task_idx > 0:
+                print(f"Eval Episode {task_idx}/{num_episodes}")
             step = 0
             running_reward = 0.0
             done_rollout = False
@@ -437,7 +440,6 @@ class Learner:
                     self.config_seq.sampled_seq_len
                 )
             traj = dict(o=[], a=[], r=[], h=[], s=[])
-            infos = []
 
             while not done_rollout:
                 if self.agent_arch == AGENT_ARCHS.Memory:

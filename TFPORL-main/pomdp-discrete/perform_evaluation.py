@@ -1,49 +1,71 @@
 from main_eval import initialize_learner_with_flags
 from policies.learner import Learner
+import numpy as np
 import os
+import re
 
-os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
 
-
-def evaluate(learner: Learner):
+def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
     # Evaluate the model (or perform inference)
-    returns_per_episode, success_rate, total_steps, trajs, infos = learner.evaluate(episodes=10)
+    returns_per_episode, success_rate, total_steps, trajs, infos = learner.evaluate(episodes=episodes)
     print('Evaluation Completed')
-    print(returns_per_episode)
 
-    """
-    # Perform inference
-    learner.agent.eval()  # Set the agent to evaluation mode
+    # Calculate mean and std of returns
+    mean_return = np.mean(returns_per_episode)
+    std_return = np.std(returns_per_episode)
 
-    # Reset the environment to get the initial observation
-    action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
-    obs, _ = learner.eval_env.reset()
-    obs = ptu.from_numpy(obs)
+    # Prepare the data to save
+    output_lines = []
+    output_lines.append(f"Evaluation Results - {episodes} Episodes\n")
+    output_lines.append(f"Mean Return: {mean_return}\n")
+    output_lines.append(f"Standard Deviation of Return: {std_return}\n")
+    output_lines.append(f"Maximum Return: {np.max(returns_per_episode)}\n")
+    output_lines.append(f"Minimum Return: {np.min(returns_per_episode)}\n")
+    output_lines.append("Info Keywords:\n")
+    for key, value in infos.items():
+        output_lines.append(f"- {key}: {value}\n")
 
-    done = False
-    while not done:
-        # Select an action based on the current observation
-        action, internal_state = learner.agent.act(
-            prev_internal_state=internal_state,
-            prev_action=action,
-            reward=reward,
-            obs=obs,
-            deterministic=True,
-        )
+    # Construct the file path with the number of episodes
+    filename = f"evaluation_results_{episodes}_episodes.txt"
+    file_path = os.path.join(save_dir, filename)
 
-        # Step the environment with the selected action
-        next_obs, reward, done, info = utl.env_step(learner.eval_env, action.squeeze(dim=0))
+    # Save the results to the txt file
+    with open(file_path, 'w') as file:
+        file.writelines(output_lines)
 
-        action_index = torch.argmax(action, dim=-1).item()
-        # Print the results
-        print(f"Action: {action_index}, Reward: {reward}, Done: {done}")
+    print("------------------------*------------------------")
+    for line in output_lines:
+        print(line, end='')
+    print(f"Results saved to {file_path}")
+    print('\n')
 
-        # Update the observation
-        obs = next_obs.clone()
-    """
+    return mean_return
+
 
 if __name__ == "__main__":
-    agent = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lru/seed-1')
-    print('Loaded Agent')
+    dir = 'logs_results/mini-cage/final/standard/mlp'
+    mean_rewards = []
 
-    evaluate(agent)
+    agent = None
+
+    # Iterate over all subfolders in save_dir
+    for subfolder in os.listdir(dir):
+        subfolder_path = os.path.join(dir, subfolder)
+        if os.path.isdir(subfolder_path):
+            print(f"Evaluating agent in subfolder: {subfolder}")
+            if agent is None:
+                agent = initialize_learner_with_flags(save_dir=subfolder_path)
+            else:
+                save_path = os.path.join(subfolder_path, "save")
+                agent_files = [f for f in os.listdir(save_path)]
+                if agent_files:
+                    file_paths = [os.path.join(save_path, f) for f in agent_files]
+                    model_path = max(file_paths, key=os.path.getctime)
+                else: raise ValueError("No valid agent_*.pt files found in the save directory.")
+                agent.load_model(model_path)
+            mean_reward = evaluate(learner=agent, save_dir=subfolder_path, episodes=20)
+            mean_rewards.append(mean_reward)
+
+    print("\n------------------------*------------------------")
+    print(f"Mean reward over all agents: {np.mean(mean_rewards)}")
+    print("------------------------*------------------------")

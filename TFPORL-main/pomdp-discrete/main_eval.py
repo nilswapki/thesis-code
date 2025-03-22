@@ -7,9 +7,12 @@ from envs.make_env import make_env
 import re
 from torchkit.pytorch_utils import set_gpu_mode
 import torch
+import sys
+from utils import system
 
-os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+if torch.cuda.is_available():  # if running on work computer
+    os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 FLAGS = flags.FLAGS
 
@@ -89,7 +92,12 @@ def load_flags_from_pkl(pkl_path):
                 FLAGS.save_dir = value
 
 
-def main(argv, save_dir=None):
+def initialize_learner_with_flags(save_dir=None):
+
+    """Manually initializes FLAGS and returns the learner."""
+    if not FLAGS.is_parsed():  # Ensure flags are parsed
+        FLAGS(sys.argv)
+
     if save_dir is None:
         raise ValueError('Please specify a directory')
 
@@ -108,6 +116,7 @@ def main(argv, save_dir=None):
     config_env, env_name = config_env.create_fn(config_env)
     env = make_env(env_name, FLAGS.seed)
     eval_env = make_env(env_name, FLAGS.seed + 42, eval=True)
+    system.reproduce(FLAGS.seed)
 
     # Create the Learner instance and load the trained model
     learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
@@ -129,9 +138,5 @@ def main(argv, save_dir=None):
     return learner
 
 
-def initialize_learner_with_flags(save_dir):
-    """Wrapper function to initialize FLAGS and call main manually."""
-    app.run(lambda argv: main(argv, save_dir))
-
 if __name__ == "__main__":
-    app.run(main)
+    initialize_learner_with_flags('x')
