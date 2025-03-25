@@ -476,10 +476,10 @@ def load_csv(path):
 
 
 if __name__ == '__main__':
-    folder_path = 'logs/network-defender/100/mlp/2025-03-17-20:09:39/'
+    folder_path = 'logs_results/mini-cage/final/standard'
 
-    #plot_models(folder_path, feature='critic_loss', window_size=1)
-    plot_feature(folder_path=folder_path, feature='return')
+    plot_models(folder_path, feature='return', window_size=100)
+    #plot_feature(folder_path=folder_path, feature='return')
     #aggregate_main_metrics(folder_path=folder_path)
 
 

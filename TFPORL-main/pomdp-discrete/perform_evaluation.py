@@ -6,7 +6,7 @@ import re
 
 
 def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
-    # Evaluate the model (or perform inference)
+
     returns_per_episode, success_rate, total_steps, trajs, infos = learner.evaluate(episodes=episodes)
     print('Evaluation Completed')
 

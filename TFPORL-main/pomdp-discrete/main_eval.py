@@ -122,13 +122,10 @@ def initialize_learner_with_flags(save_dir=None):
     learner = Learner(env, eval_env, FLAGS, config_rl, config_seq, config_env)
 
     save_path = os.path.join(save_dir, "save")
-    agent_files = [f for f in os.listdir(save_path) if re.match(r"agent_\d+_perf-[-+]?\d*\.\d+\.pt$", f)]
+    agent_files = [f for f in os.listdir(save_path)]
     if agent_files:
-    # Find the file with the highest step number
-        model_path = max(
-            [os.path.join(save_path, f) for f in agent_files],
-            key=lambda x: int(re.search(r"agent_(\d+)_perf", x).group(1))
-    )
+        file_paths = [os.path.join(save_path, f) for f in agent_files]
+        model_path = max(file_paths, key=os.path.getctime)
     else:
         raise ValueError("No valid agent_*.pt files found in the save directory.")
     

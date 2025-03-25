@@ -67,6 +67,9 @@ class SimplifiedCAGEWrapper(gym.Env):
 
         return next_state['Blue'], reward['Blue'], terminated, truncated, info
 
+    def describe_feature(self, feature_index):
+        return self.env.describe_feature(feature_index)
+
     def render(self, mode='human'):
         # Rendering is optional and depends on the base environment's capabilities
         print("Rendering not implemented for SimplifiedCAGE.")

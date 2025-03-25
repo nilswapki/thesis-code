@@ -1451,10 +1451,12 @@ class SimplifiedCAGE(gym.Env):
         Parameters:
             action (int): The action number (0 to 53).
         """
-        action = action.item()
+        # if action is not int
+        if not isinstance(action, int):
+            action = action.item()
         if action == 0:
             print("Blue Action: Do nothing (sleep)")
-            return
+            return "Sleep"
 
         # Compute the host and action type
         host = (action - 1) % self.num_nodes
@@ -1462,16 +1464,17 @@ class SimplifiedCAGE(gym.Env):
 
         # Map action types to descriptions
         action_map = {
-            0: "Analyse host",
-            1: "Place decoy on host",
-            2: "Remove host",
-            3: "Restore host"
+            0: "Analyse",
+            1: "Place decoy on",
+            2: "Remove",
+            3: "Restore"
         }
 
         # Get the action description
         action_description = action_map.get(action_type, "Unknown action")
 
         print(f"Blue Action: {action_description} on host {host}")
+        return f"{action_description} host {host}"
 
 
 
@@ -1500,6 +1503,27 @@ class SimplifiedCAGE(gym.Env):
         action_description = action_map.get(action_type, "Unknown action")
         print(f"Red Action: {action_description} on host {host}")
 
+    def describe_feature(self, feature_index):
+        """
+        Given the feature index and number of nodes, returns the feature name.
 
+        Args:
+            feature_index (int): Index of the feature in the observation space.
+            num_nodes (int): The number of nodes in the environment.
+
+        Returns:
+            str: The name of the feature corresponding to the given index.
+        """
+        # 2n scan activity, 2n host safety, n prior scans, n decoy info --> 6n
+        if feature_index < 2 * self.num_nodes:  # Scan activity features (2n)
+            return f"Scan Activity Node {feature_index + 1}"
+        elif feature_index < 4 * self.num_nodes:  # Host safety features (2n)
+            return f"Host Safety Node {feature_index - 2 * self.num_nodes + 1}"
+        elif feature_index < 5 * self.num_nodes:  # Prior scans features (n)
+            return f"Prior Scan Node {feature_index - 4 * self.num_nodes + 1}"
+        elif feature_index < 6 * self.num_nodes:  # Decoy info features (n)
+            return f"Decoy Info Node {feature_index - 5 * self.num_nodes + 1}"
+        else:
+            return "Unknown Feature"
 
         
