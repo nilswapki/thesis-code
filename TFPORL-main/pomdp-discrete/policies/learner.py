@@ -282,7 +282,7 @@ class Learner:
                 # NOTE: designed by env
                 term = self.config_env.terminal_fn(self.train_env, done_rollout, info)
 
-                if self.train_env.name == "mini-cage":
+                if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
                     # add data to policy buffer
                     valid_list_blue.append(info['valid_blue'])
                     valid_list_red.append(info['valid_red'])
@@ -334,11 +334,11 @@ class Learner:
 
             total_reward = torch.cat(rew_list, dim=0).sum().item()
 
-            if self.train_env.name == "mini-cage":
+            if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
                 invalid_actions_blue = (1 - np.mean(valid_list_blue))
                 invalid_actions_red = (1 - np.mean(valid_list_red))
 
-            if self.train_env.name == "mini-cage":
+            if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
                 # print and log
                 print(
                     f"Episode: {self._n_rollouts_total:03d} --- "
@@ -346,15 +346,6 @@ class Learner:
                     f"Reward: {total_reward:05.2f} --- "
                     f"Invalid Actions Blue: {invalid_actions_blue:04.2f} --- "
                     f"Invalid Actions Red: {invalid_actions_red:04.2f}"
-                )
-            elif self.train_env.name == "mini-cage-red":
-                # print and log
-                print(
-                    f"Episode: {self._n_rollouts_total:03d} --- "
-                    f"Steps: {steps:03d} --- "
-                    f"Reward: {total_reward:05.2f} --- "
-                    #f"Invalid Actions Blue: {invalid_actions_blue:04.2f} --- "
-                    #f"Invalid Actions Red: {invalid_actions_red:04.2f}"
                 )
             elif self.train_env.name == "network-defender":
                 print(
@@ -364,7 +355,7 @@ class Learner:
                     f"Unnecessary Restorations: {restorations:02d} --- "
                     f"Infiltrations: {infiltrations:03d}")
 
-            if self.train_env.name == 'mini-cage':
+            if self.train_env.name == 'mini-cage' or self.train_env.name == 'mini-cage-red':
                 self.log_training(reward=total_reward, success=False, total_steps=steps,
                                   invalid_actions_blue=invalid_actions_blue, invalid_actions_red=invalid_actions_red)
             elif self.train_env.name == 'network-defender':
@@ -469,7 +460,7 @@ class Learner:
                 step += 1
                 done_rollout = False if ptu.get_numpy(done[0][0]) == 0.0 else True
 
-                if self.train_env.name == "mini-cage":
+                if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
                     valid_list_blue.append(info['valid_blue'])
                     valid_list_red.append(info['valid_red'])
                 elif self.train_env.name == "network-defender":
@@ -479,11 +470,11 @@ class Learner:
                 # set: obs <- next_obs
                 obs = next_obs.clone()
             
-            if self.train_env.name == "mini-cage":
+            if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
                 invalid_actions_blue = (1 - np.mean(valid_list_blue))
                 invalid_actions_red = (1 - np.mean(valid_list_red))
 
-            if self.train_env.name == "mini-cage":
+            if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
                 info = {"invalid_actions_blue_eval": invalid_actions_blue, "invalid_actions_red_eval": invalid_actions_red}
             elif self.train_env.name == "network-defender":
                 info = {"infiltrations_eval": infiltrations, "restorations_eval": restorations}
@@ -536,7 +527,7 @@ class Learner:
         logger.record_step("env_steps", self._n_env_steps_total)
         logger.record_tabular("return", reward)
 
-        if self.train_env.name == "mini-cage":
+        if self.train_env.name == "mini-cage" or self.train_env.name == "mini-cage-red":
             logger.record_tabular("invalid_actions_blue", invalid_actions_blue)
             logger.record_tabular("invalid_actions_red", invalid_actions_red)
         elif self.train_env.name == "network-defender":
@@ -561,6 +552,10 @@ class Learner:
         logger.record_step("env_steps", self._n_env_steps_total)
         returns_eval, success_rate_eval, total_steps_eval, trajs, infos = self.evaluate()
         logger.record_tabular("return_eval", np.mean(returns_eval))
+        #if self.train_env.name == "mini-cage-red":
+        #    logger.record_tabular("invalid_actions_blue_eval", infos["valid_blue"])
+        #    logger.record_tabular("invalid_actions_red_eval", infos["valid_red"])
+        #else:
         for k, v in infos.items():
             logger.record_tabular(k, v)
         logger.record_tabular("success_eval", np.mean(success_rate_eval))
