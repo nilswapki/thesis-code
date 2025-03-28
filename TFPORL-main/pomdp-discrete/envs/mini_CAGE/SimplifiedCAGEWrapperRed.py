@@ -2,7 +2,7 @@ import gymnasium as gym
 from gym import spaces
 import numpy as np
 from .minimal import SimplifiedCAGE
-from .baseline_agents import React_restore_minimal, Restore_decoys, ProactiveDefenderWithDecoys
+from .baseline_agents import React_restore_minimal, Restore_decoys, ProactiveDefenderWithDecoys, Blue_sleep
 
 
 class SimplifiedCAGEWrapperRed(gym.Env):
@@ -21,7 +21,7 @@ class SimplifiedCAGEWrapperRed(gym.Env):
         if blue_agents is not None:
             self.blue_agents = blue_agents
         else:
-            self.blue_agents = [React_restore_minimal(), Restore_decoys(), ProactiveDefenderWithDecoys()]
+            self.blue_agents = [React_restore_minimal(), Restore_decoys(), ProactiveDefenderWithDecoys(), Blue_sleep()]
         self.current_blue_agent_index = 0
 
         # Define the action space for RED agent

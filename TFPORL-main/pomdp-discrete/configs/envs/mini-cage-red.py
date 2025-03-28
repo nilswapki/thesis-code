@@ -27,7 +27,7 @@ def get_config():
 
     config.eval_interval = 100
     config.save_interval = 500
-    config.eval_episodes = 3
+    config.eval_episodes = 8
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]
     config.env_name = 100
