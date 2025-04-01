@@ -1,0 +1,8 @@
+Evaluation Results - 10 Episodes
+Mean Return: -28.239999944716693
+Standard Deviation of Return: 48.14002882806754
+Maximum Return: 0.0
+Minimum Return: -156.69999941438437
+Info Keywords:
+- invalid_actions_blue_eval: 0.0
+- invalid_actions_red_eval: 0.0
