@@ -220,7 +220,7 @@ class NetworkDefenderEnv(gym.Env):
         if action != self.n_nodes:
             # If node to be restored is actually infiltrated, restore it
             if (action != self.initial_attacker_node) and (self.infiltrated[action] > 0):  # cannot restore the initial foothold of the attacker
-                reward += (2 / self.infiltrated[action])
+                reward += max((2 - (0.2 * self.infiltrated[action])), 0)
                 self.infiltrated[action] = 0
             # If node to be restored is passively infiltrated, restore it
             elif self.recursive and (action != self.initial_attacker_node) and (action in self.passively_infiltrated):
@@ -288,8 +288,7 @@ class NetworkDefenderEnv(gym.Env):
                         self.infiltrated[node] = 10
 
         # reward is the negative sum of all infiltrated nodes --> confuses the agent
-        #reward -= (np.sum(self.infiltrated > 0) - 1) * 0.1  # dont give negative reward for initial foothold
-
+        reward -= (np.sum(self.infiltrated > 0) - 1) * 0.05  # dont give negative reward for initial foothold
 
 
         # End episode if maximum timesteps reached.

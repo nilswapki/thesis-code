@@ -36,7 +36,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/mini-cage-red.py",
+    "configs/envs/network-defender.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
@@ -50,7 +50,7 @@ config_flags.DEFINE_config_file(
 
 config_flags.DEFINE_config_file(
     "config_seq",
-    "configs/seq_models/lstm_default.py",
+    "configs/seq_models/mlp_default.py",
     "File path to the seq model configuration.",
     lock_config=False,
 )
@@ -64,7 +64,7 @@ flags.DEFINE_boolean(
 )
 
 # training settings
-flags.DEFINE_list("seeds", [5], "Random seed.")
+flags.DEFINE_list("seeds", [1], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
 flags.DEFINE_integer("train_episodes", 30000, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")

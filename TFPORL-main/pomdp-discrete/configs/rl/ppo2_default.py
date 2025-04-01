@@ -34,6 +34,6 @@ def get_config():
     config.max_grad_norm = 0.5
 
     config.replay_buffer_size = 1e6
-    config.replay_buffer_num_episodes = 1e3
+    config.replay_buffer_num_episodes = 1e4
 
     return config

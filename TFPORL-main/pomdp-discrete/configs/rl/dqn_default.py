@@ -23,14 +23,14 @@ def get_config():
 
     config.algo = "dqn"
 
-    config.critic_lr = 1e-4
-    config.actor_lr = 1e-4
+    config.critic_lr = 3e-4
+    config.actor_lr = 3e-4
 
     config.config_critic = ConfigDict()
     config.config_critic.hidden_dims = (256, 256)
 
-    config.discount = 0.95
-    config.tau = 0.007
+    config.discount = 0.99
+    config.tau = 0.005
     config.schedule_end = 0.3  # 0.1 good for TMaze-like envs
 
     config.replay_buffer_size = 1e6

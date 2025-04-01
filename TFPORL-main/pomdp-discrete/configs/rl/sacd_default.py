@@ -15,7 +15,7 @@ def get_config():
     config.algo = "sacd"
 
     config.actor_lr = 3e-4
-    config.critic_lr = 2e-4
+    config.critic_lr = 3e-4
     config.temp_lr = 6e-4
 
     config.config_actor = ConfigDict()
@@ -31,7 +31,7 @@ def get_config():
     config.update_temperature = True
     config.target_entropy = None
 
-    config.replay_buffer_size = 1e5
-    config.replay_buffer_num_episodes = 5e3
+    config.replay_buffer_size = 1e6
+    config.replay_buffer_num_episodes = 1e4
 
     return config
