@@ -1,0 +1,2 @@
+Mean reward over all agents: -0.37870000196993353
+Standard Deviation of mean reward: 0.2830494006438809

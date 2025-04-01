@@ -4,6 +4,8 @@ import numpy as np
 from .minimal import SimplifiedCAGE
 from .baseline_agents import Meander_minimal, B_line_minimal, Blue_sleep
 
+import sys, os
+from main_eval_red import initialize_learner_with_flags
 
 class SimplifiedCAGEWrapper(gym.Env):
     def __init__(self, num_envs=1, remove_bugs=True, red_agents=None, episode_length=100, verbose=False):
@@ -17,6 +19,8 @@ class SimplifiedCAGEWrapper(gym.Env):
         self.eval_length = episode_length
         self.steps_taken = 0
 
+        self.last_reward = {'Red': 0, 'Blue': 0}
+
         if red_agents is not None:
             self.red_agents = red_agents
         else:
@@ -29,6 +33,8 @@ class SimplifiedCAGEWrapper(gym.Env):
         # Define the observation space based on the environment's state
         # 2n scan activity, 2n host safety, n prior scans, n decoy info --> 6n
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(self.env.num_nodes*6,), dtype=np.float32)
+
+        self.learner_red = initialize_learner_with_flags(save_dir='logs_results/mini-cage-red/attacker_30000/seed-5')
 
     def reset(self, seed=None, options=None):
 
@@ -44,7 +50,14 @@ class SimplifiedCAGEWrapper(gym.Env):
 
     def step(self, blue_action):
         self.steps_taken += 1
-        # Parse red and blue actions
+        obs_red = self.env._process_state(self.env.state, self.env.current_decoys)['Red']
+        action, internal_state = self.learner_red.agent.act(
+            prev_internal_state=internal_state,
+            prev_action=action,
+            reward=self.last_reward['Red'],
+            obs=obs_red,
+            deterministic=True,
+        )
         red_action = self.red_agent.get_action(observation=self.env._process_state(self.env.state, self.env.current_decoys)['Red'])
 
         # converting int64 to np.array
@@ -56,6 +69,7 @@ class SimplifiedCAGEWrapper(gym.Env):
 
         # Take a step in the environment
         next_state, reward, done, info = self.env.step(red_action, blue_action)
+        self.last_reward = reward
         ##reward = np.array([reward['Red'], reward['Blue']]).T  # Adjust reward structure for both agents
 
         # Convert the "done" signal into a Gym-compatible format

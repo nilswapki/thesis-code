@@ -36,7 +36,7 @@ class Learner:
 
         self.init_agent()
 
-        self.init_train()
+        #self.init_train()
 
     def init_env(
         self,
@@ -66,7 +66,9 @@ class Learner:
         else:
             if self.config_rl.algo == "dqn":
                 agent_class = AGENT_CLASSES["Policy_DQN_RNN"]
-            elif self.FLAGS.shared_encoder:
+            #elif self.FLAGS.shared_encoder:
+            elif (getattr(self.FLAGS, "shared_encoder", False) or
+                  getattr(self.FLAGS, "shared_decoder_red", False)):
                 agent_class = AGENT_CLASSES["Policy_Shared_RNN"]
             else:
                 agent_class = AGENT_CLASSES["Policy_Separate_RNN"]
@@ -83,13 +85,14 @@ class Learner:
         else:
             image_encoder_fn = lambda: None
 
+        freeze_critic = (getattr(self.FLAGS, "freeze_critic", False) or getattr(self.FLAGS, "freeze_critic_red", False))
         self.agent = agent_class(
             obs_dim=self.obs_dim,
             action_dim=self.act_dim,
             config_seq=self.config_seq,
             config_rl=self.config_rl,
             image_encoder_fn=image_encoder_fn,
-            freeze_critic=self.FLAGS.freeze_critic,
+            freeze_critic=freeze_critic, #self.FLAGS.freeze_critic,
         ).to(ptu.device)
         logger.log(self.agent)
 

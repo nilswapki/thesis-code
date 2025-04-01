@@ -39,12 +39,13 @@ def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
     print(f"Results saved to {file_path}")
     print('\n')
 
-    return mean_return
+    return returns_per_episode
 
 
 if __name__ == "__main__":
     dir = 'logs_results/mini-cage/final/standard/mlp'
-    mean_rewards = []
+    episodes = 2
+    all_rewards = []
 
     agent = None
 
@@ -63,9 +64,20 @@ if __name__ == "__main__":
                     model_path = max(file_paths, key=os.path.getctime)
                 else: raise ValueError("No valid agent_*.pt files found in the save directory.")
                 agent.load_model(model_path)
-            mean_reward = evaluate(learner=agent, save_dir=subfolder_path, episodes=20)
-            mean_rewards.append(mean_reward)
+            rewards = evaluate(learner=agent, save_dir=subfolder_path, episodes=episodes)
+            all_rewards.append(rewards)
+
+    # save mean and std of mean_rewards in a txt file
+    output_lines = []
+    output_lines.append(f"Mean reward over all agents: {np.mean([np.mean(rewards) for rewards in all_rewards])}\n")
+    output_lines.append(f"Standard Deviation of mean reward: {np.std([np.mean(rewards) for rewards in all_rewards])}\n")
+    output_lines.append(f"Maximum Reward: {np.max([np.max(rewards) for rewards in all_rewards])}\n")
+    output_lines.append(f"Minimum Reward: {np.min([np.min(rewards) for rewards in all_rewards])}\n")
+    filename = f"overall_rewards_{episodes}_episodes.txt"
+    file_path = os.path.join(dir, filename)
+    with open(file_path, 'w') as file:
+        file.writelines(output_lines)
 
     print("\n------------------------*------------------------")
-    print(f"Mean reward over all agents: {np.mean(mean_rewards)}")
+    print(f"Mean reward over all agents: {np.mean([np.mean(rewards) for rewards in all_rewards])}")
     print("------------------------*------------------------")
