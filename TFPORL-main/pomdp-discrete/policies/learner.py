@@ -36,7 +36,7 @@ class Learner:
 
         self.init_agent()
 
-        #self.init_train()
+        self.init_train()
 
     def init_env(
         self,

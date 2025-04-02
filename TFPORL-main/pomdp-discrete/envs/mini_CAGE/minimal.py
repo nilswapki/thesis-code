@@ -657,7 +657,7 @@ def update_red(state, action, subnet_loc, processes, impacted, femitter_placed, 
                 new_impacted[valid] = impact_copy
 
     else:
-        action_reward = np.array([[-0.1]])
+        # action_reward = np.array([[-0.1]])  # removed for evaluation purposes
         action_valid = False
         # print('Invalid Red Action')
 

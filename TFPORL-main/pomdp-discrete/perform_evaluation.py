@@ -43,8 +43,8 @@ def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
 
 
 if __name__ == "__main__":
-    dir = 'logs_results/mini-cage/final/standard/mlp'
-    episodes = 2
+    dir = 'logs_results/mini-cage/final/standard/lstm'
+    episodes = 200
     all_rewards = []
 
     agent = None
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     output_lines.append(f"Standard Deviation of mean reward: {np.std([np.mean(rewards) for rewards in all_rewards])}\n")
     output_lines.append(f"Maximum Reward: {np.max([np.max(rewards) for rewards in all_rewards])}\n")
     output_lines.append(f"Minimum Reward: {np.min([np.min(rewards) for rewards in all_rewards])}\n")
-    filename = f"overall_rewards_{episodes}_episodes.txt"
+    filename = f"overall_rewards_adversarial_{episodes}_episodes.txt"
     file_path = os.path.join(dir, filename)
     with open(file_path, 'w') as file:
         file.writelines(output_lines)

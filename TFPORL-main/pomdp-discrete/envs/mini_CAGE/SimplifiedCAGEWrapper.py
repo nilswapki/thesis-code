@@ -6,6 +6,8 @@ from .baseline_agents import Meander_minimal, B_line_minimal, Blue_sleep
 
 import sys, os
 from main_eval_red import initialize_learner_with_flags
+from torchkit import pytorch_utils as ptu
+import torch
 
 class SimplifiedCAGEWrapper(gym.Env):
     def __init__(self, num_envs=1, remove_bugs=True, red_agents=None, episode_length=100, verbose=False):
@@ -18,8 +20,6 @@ class SimplifiedCAGEWrapper(gym.Env):
         self.episode_length = episode_length
         self.eval_length = episode_length
         self.steps_taken = 0
-
-        self.last_reward = {'Red': 0, 'Blue': 0}
 
         if red_agents is not None:
             self.red_agents = red_agents
@@ -35,6 +35,9 @@ class SimplifiedCAGEWrapper(gym.Env):
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(self.env.num_nodes*6,), dtype=np.float32)
 
         self.learner_red = initialize_learner_with_flags(save_dir='logs_results/mini-cage-red/attacker_30000/seed-5')
+        self.action_red, self.reward_red, self.internal_state_red = self.learner_red.agent.get_initial_info(
+            self.learner_red.config_seq.sampled_seq_len
+        )
 
     def reset(self, seed=None, options=None):
 
@@ -51,25 +54,27 @@ class SimplifiedCAGEWrapper(gym.Env):
     def step(self, blue_action):
         self.steps_taken += 1
         obs_red = self.env._process_state(self.env.state, self.env.current_decoys)['Red']
-        action, internal_state = self.learner_red.agent.act(
-            prev_internal_state=internal_state,
-            prev_action=action,
-            reward=self.last_reward['Red'],
+        obs_red = ptu.from_numpy(obs_red).reshape(-1, 1) if obs_red.shape[0] == 1 else ptu.from_numpy(obs_red)
+        self.action_red, self.internal_state_red = self.learner_red.agent.act(
+            prev_internal_state=self.internal_state_red,
+            prev_action=self.action_red,
+            reward=self.reward_red,
             obs=obs_red,
             deterministic=True,
         )
-        red_action = self.red_agent.get_action(observation=self.env._process_state(self.env.state, self.env.current_decoys)['Red'])
+        #self.action_red = self.red_agent.get_action(observation=self.env._process_state(self.env.state, self.env.current_decoys)['Red'])
 
         # converting int64 to np.array
         blue_action = np.array([[blue_action]]) if np.issubdtype(type(blue_action), np.integer) else blue_action
 
         if self.verbose:
             self.env.describe_action_blue(blue_action)
-            self.env.describe_action_red(red_action)
+            self.env.describe_action_red(self.action_red)
 
         # Take a step in the environment
-        next_state, reward, done, info = self.env.step(red_action, blue_action)
-        self.last_reward = reward
+        action_red_shaped = torch.argmax(self.action_red, dim=1).cpu().numpy().reshape(1, 1)
+        next_state, reward, done, info = self.env.step(action_red_shaped, blue_action)
+        self.reward_red = torch.tensor(reward['Red']).reshape(1, 1)
         ##reward = np.array([reward['Red'], reward['Blue']]).T  # Adjust reward structure for both agents
 
         # Convert the "done" signal into a Gym-compatible format
