@@ -34,13 +34,13 @@ def get_config():
     config.terminal_fn = finite_horizon_terminal
 
     config.eval_interval = 100
-    config.save_interval = 500
+    config.save_interval = 5000
     config.eval_episodes = 5
 
     config.n_nodes = 15
     config.extra_edge_prob = 0.2
-    config.noise_mean = 0.3
-    config.noise_95_interval = 0.2
+    config.noise_mean = 0.4
+    config.noise_95_interval = 0.25
     config.recursive = False
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]
