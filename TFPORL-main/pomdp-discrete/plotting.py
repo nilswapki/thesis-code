@@ -450,7 +450,7 @@ def plot_models(superfolder_path, feature, window_size=10):
                  label=f'{model_folder} {feature_name}')
         plt.fill_between(range(max_length),
                          mean_smoothed - std_smoothed,
-                         mean_smoothed + std_smoothed,
+                         np.minimum(mean_smoothed + std_smoothed, 0),  # maximum 0 for miniCAGE
                          color=color, alpha=0.3)
 
     # Final plot settings.

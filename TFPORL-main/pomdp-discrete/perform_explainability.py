@@ -16,6 +16,7 @@ import torch
 import torchkit.pytorch_utils as ptu
 import utils.helpers as utl
 import altair_saver
+import re
 
 matplotlib.use('TkAgg')  # Use the standard interactive backend
 
@@ -60,7 +61,7 @@ def generate_trajs(learner: Learner, num_trajs: int):
 
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
         trajectory = np.transpose(trajectory, (2, 0, 1))
-        trajs.append(trajectory[:, :10, :])
+        trajs.append(trajectory[:, :20, :])
 
     return trajs
 
@@ -110,12 +111,12 @@ def model_wrapper(obs_batch):
         return np.array(actions).reshape(-1, 1)  # Ensure shape (#samples, 1)
 
 
-def explain(learner: Learner):
+def explain(learner: Learner, num_trajs: int = 3):
     # Evaluate the model
     learner.agent.eval()  # Set the agent to evaluation mode
 
     # Generate trajectories
-    trajectories = generate_trajs(learner, num_trajs=2)
+    trajectories = generate_trajs(learner, num_trajs=num_trajs)
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
@@ -131,31 +132,95 @@ def explain(learner: Learner):
     feature_dict = {'rs': 42, 'nsamples': 100, 'feature_names': model_features, 'plot_features': plot_features}
     cell_dict = {'rs': 42, 'nsamples': 100, 'top_x_feats': 3, 'top_x_events': 3}
 
+    events = []
+    features = []
+
+    for traj in trajectories:
+        num_events = traj.shape[1]  # includes the pruned event slot
+        num_features = traj.shape[2]  # includes the pruned feature slot
+
+        # Run TimeSHAP
+        _, event_data, feature_data, _ = calc_local_report(
+            f=model_wrapper,
+            data=traj,
+            pruning_dict=pruning_dict,
+            event_dict=event_dict,
+            feature_dict=feature_dict,
+            cell_dict=cell_dict,
+            baseline=avg_event
+        )
+
+        # Initialize arrays with zeros (or np.nan if you prefer)
+        event_array = np.zeros(num_events)
+        feature_array = np.zeros(num_features)
+
+        # === Handle events ===
+        for _, row in event_data.iterrows():
+            label = row["Feature"]
+            if label == "Pruned Events":
+                idx = 0
+                #array_idx = num_events - 1  # last column
+            else:
+                match = re.search(r"Event (-?\d+)", label)
+                if match:
+                    idx = int(match.group(1))
+                    #array_idx = idx if idx >= 0 else num_events + idx
+                else:
+                    print(f"Unrecognized event label: {label}")
+                    idx = 0
+                    continue
+
+            if 0 != idx:
+                event_array[idx] = abs(row["Shapley Value"])
+            else:
+                print(f"Invalid event index: {idx} for label: {label}")
+
+        # === Handle features ===
+        for _, row in feature_data.iterrows():
+            label = row["Feature"]
+            if label == "Pruned Events":
+                array_idx = num_features - 1  # last column
+            else:
+                match = re.search(r"Feature (-?\d+)", label)
+                if match:
+                    idx = int(match.group(1))
+                    array_idx = idx if idx >= 0 else num_features + idx - 1
+                else:
+                    print(f"Unrecognized feature label: {label}")
+                    continue
+
+            if 0 <= array_idx < num_features:
+                feature_array[array_idx] = row["Shapley Value"]
+            else:
+                print(f"Invalid feature index: {array_idx} for label: {label}")
+
+        events.append(event_array)
+        features.append(feature_array)
+
+    # Convert to np arrays for easy slicing/plotting
+    events = np.array(events)  # shape: (num_trajs, num_events)
+    features = np.array(features)  # shape: (num_trajs, num_features)
+
     """
-    # Generate local report and plot using TimeSHAP
-    pruning_data, event_data, feature_data, cell_level = calc_local_report(
-        f=model_wrapper,
-        data=trajectories[0],
-        pruning_dict=pruning_dict,
-        event_dict=event_dict,
-        feature_dict=feature_dict,
-        cell_dict=cell_dict,
-        baseline=avg_event
-    )
-    """
+    data_list = []
+    for i, traj in enumerate(trajectories):
+        df = pd.DataFrame(traj.squeeze(0))  # Shape (100, 78)
+        df["episode_id"] = i  # Assign unique ID for each trajectory
+        data_list.append(df)
+    df_all = pd.concat(data_list, ignore_index=True)  # Merge into one DataFrame
+
     prun_indexes, event_data, feat_data = calc_global_explanations(
         f=model_wrapper,
-        data=np.stack([traj.squeeze(0) for traj in trajectories]),
+        data=df_all,
         pruning_dict=pruning_dict,
         event_dict=event_dict,
         feature_dict=feature_dict,
-        baseline=avg_event
+        baseline=avg_event,
+        entity_col="episode_id",
     )
+    """
 
-
-
-    plot_pruning(pruning_data, cutoff_t=pruning_dict['tol'])
-    plot_event(event_data)
+    plot_event_multi(events)
 
     plt.show()
 
@@ -182,7 +247,7 @@ def plot_pruning(pruning_data, cutoff_t):
     plt.savefig('pruning_contribution.png')
 
 
-def plot_event(event_data, sort=False):
+def plot_event_single(event_data, sort=False):
     if sort:
         # Sort features by absolute Shapley Value (most important first)
         event_data_sorted = event_data.sort_values(by="Shapley Value", key=abs, ascending=True)
@@ -208,6 +273,53 @@ def plot_event(event_data, sort=False):
     plt.savefig('event_importance.png')
 
 
+def plot_event_multi(events):
+    events = np.array(events)
+    num_trajs, num_events = events.shape
+
+    # X-axis: event indices from -N+1 to 0
+    x_labels = list(range(-num_events + 1, 1))
+
+    plt.figure(figsize=(12, 6))
+
+    # Plot individual Shapley values
+    for i, x in enumerate(x_labels):
+        y_vals = events[:, i]
+        plt.scatter(
+            [x] * len(y_vals), y_vals,
+            color='mediumturquoise',
+            alpha=0.4,
+            s=100,
+            edgecolor='none',
+            label='Shapley Value' if i == 0 else None
+        )
+
+    # Plot mean Shapley values
+    mean_vals = np.mean(events, axis=0)
+    plt.scatter(
+        x_labels, mean_vals,
+        color='orangered',
+        s=100,
+        zorder=3,
+        label='Mean'
+    )
+
+    # Formatting
+    plt.xticks(x_labels)
+    plt.xlabel("Event index", fontsize=12)
+    plt.ylabel("Shapley Value", fontsize=12)
+    plt.title("Shapley Value", fontsize=14, fontweight='bold')
+
+    # Grid: horizontal only, dotted and semi-transparent
+    plt.grid(axis='y', linestyle='--', alpha=0.5)
+    plt.grid(axis='x', visible=False)
+
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
-    explain(learner)
+    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/mlp/seed-1')
+    explain(learner, num_trajs=10)

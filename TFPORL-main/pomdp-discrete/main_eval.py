@@ -105,7 +105,7 @@ def initialize_learner_with_flags(save_dir=None):
     load_flags_from_pkl(os.path.join(save_dir, "flags.pkl"))
 
     gpu_mode_bool = ((torch.cuda.is_available() or torch.backends.mps.is_available())
-                and not FLAGS.config_seq.model.seq_model_config.name == 'mlp')
+                and not FLAGS.config_seq.model.seq_model_config.name == 'mlpx')
     set_gpu_mode(mode=gpu_mode_bool)
 
     # Load the environment and the Learner instance

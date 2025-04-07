@@ -34,10 +34,12 @@ class SimplifiedCAGEWrapper(gym.Env):
         # 2n scan activity, 2n host safety, n prior scans, n decoy info --> 6n
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(self.env.num_nodes*6,), dtype=np.float32)
 
-        self.learner_red = initialize_learner_with_flags(save_dir='logs_results/mini-cage-red/attacker_30000/seed-5')
-        self.action_red, self.reward_red, self.internal_state_red = self.learner_red.agent.get_initial_info(
-            self.learner_red.config_seq.sampled_seq_len
-        )
+        self.adversarial = False
+        if self.adversarial:
+            self.learner_red = initialize_learner_with_flags(save_dir='logs_results/mini-cage-red/attacker_30000/seed-5')
+            self.action_red, self.reward_red, self.internal_state_red = self.learner_red.agent.get_initial_info(
+                self.learner_red.config_seq.sampled_seq_len
+            )
 
     def reset(self, seed=None, options=None):
 
@@ -53,16 +55,18 @@ class SimplifiedCAGEWrapper(gym.Env):
 
     def step(self, blue_action):
         self.steps_taken += 1
-        obs_red = self.env._process_state(self.env.state, self.env.current_decoys)['Red']
-        obs_red = ptu.from_numpy(obs_red).reshape(-1, 1) if obs_red.shape[0] == 1 else ptu.from_numpy(obs_red)
-        self.action_red, self.internal_state_red = self.learner_red.agent.act(
-            prev_internal_state=self.internal_state_red,
-            prev_action=self.action_red,
-            reward=self.reward_red,
-            obs=obs_red,
-            deterministic=True,
-        )
-        #self.action_red = self.red_agent.get_action(observation=self.env._process_state(self.env.state, self.env.current_decoys)['Red'])
+        if self.adversarial:
+            obs_red = self.env._process_state(self.env.state, self.env.current_decoys)['Red']
+            obs_red = ptu.from_numpy(obs_red).reshape(-1, 1) if obs_red.shape[0] == 1 else ptu.from_numpy(obs_red)
+            self.action_red, self.internal_state_red = self.learner_red.agent.act(
+                prev_internal_state=self.internal_state_red,
+                prev_action=self.action_red,
+                reward=self.reward_red,
+                obs=obs_red,
+                deterministic=True,
+            )
+        else:
+            self.action_red = self.red_agent.get_action(observation=self.env._process_state(self.env.state, self.env.current_decoys)['Red'])
 
         # converting int64 to np.array
         blue_action = np.array([[blue_action]]) if np.issubdtype(type(blue_action), np.integer) else blue_action
@@ -72,9 +76,12 @@ class SimplifiedCAGEWrapper(gym.Env):
             self.env.describe_action_red(self.action_red)
 
         # Take a step in the environment
-        action_red_shaped = torch.argmax(self.action_red, dim=1).cpu().numpy().reshape(1, 1)
+        if self.adversarial:
+            action_red_shaped = torch.argmax(self.action_red, dim=1).cpu().numpy().reshape(1, 1)
+        else: action_red_shaped = self.action_red
         next_state, reward, done, info = self.env.step(action_red_shaped, blue_action)
-        self.reward_red = torch.tensor(reward['Red']).reshape(1, 1)
+        if self.adversarial:
+            self.reward_red = torch.tensor(reward['Red']).reshape(1, 1)
         ##reward = np.array([reward['Red'], reward['Blue']]).T  # Adjust reward structure for both agents
 
         # Convert the "done" signal into a Gym-compatible format
