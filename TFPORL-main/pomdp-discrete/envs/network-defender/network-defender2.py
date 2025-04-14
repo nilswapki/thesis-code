@@ -1,3 +1,5 @@
+import os
+
 import gym
 from gym import spaces
 import numpy as np
@@ -6,6 +8,7 @@ import random
 import math
 from collections import deque
 import matplotlib.pyplot as plt
+import pickle
 
 
 class NetworkDefenderEnv(gym.Env):
@@ -42,9 +45,13 @@ class NetworkDefenderEnv(gym.Env):
             self.seed(seed)
 
         # Generate network graph and derive connection matrix and neighbor lists.
-        self.graph = self._generate_connected_graph(self.n_nodes, self.extra_edge_prob)
+        file_path = f"envs/network-defender/graphs/graph-nodes{n_nodes}-edges{extra_edge_prob}.gpickle"
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                self.graph = pickle.load(f)
+        else:
+            self.graph = self._generate_connected_graph(self.n_nodes, self.extra_edge_prob)
         self.connection_matrix, self.neighbors = self._create_adj_and_neighbors(self.graph)
-
 
         ### Global node statuses:
         # infiltration: flag for each node, >=1 if infiltrated (by attacker), 0 otherwise.
@@ -72,7 +79,7 @@ class NetworkDefenderEnv(gym.Env):
         random.seed(seed)
         np.random.seed(seed)
 
-    def _generate_connected_graph(self, n_nodes, extra_edge_prob):
+    def _generate_connected_graph(self, n_nodes, extra_edge_prob, save_graph=True):
         # Use NetworkX to generate a spanning tree, then add extra edges.
         tree = nx.from_prufer_sequence(np.random.randint(0, n_nodes, size=n_nodes - 2))
         G = nx.Graph(tree)
@@ -83,6 +90,12 @@ class NetworkDefenderEnv(gym.Env):
         # Ensure connectivity.
         if not nx.is_connected(G):
             G = nx.connected_component_subgraphs(G).__next__()
+        x = os.getcwd()
+        if save_graph:
+            with open(f"envs/network-defender/graphs/graph-nodes{n_nodes}-edges{extra_edge_prob}.gpickle", "wb") as f:
+                pickle.dump(G, f)
+            self.save_graph_image(graph=G, path=f"envs/network-defender/graphs/graph-nodes{n_nodes}-edges{extra_edge_prob}.png")
+        # Save the graph as an image.
         return G
 
     def _create_adj_and_neighbors(self, G):
@@ -94,79 +107,6 @@ class NetworkDefenderEnv(gym.Env):
             neigh = np.where(adj[i] == 1)[0].tolist()
             neighbors.append(neigh)
         return adj, neighbors
-
-    def is_freestanding(self, node):
-        """
-        Check if a node is freestanding, meaning that none of its neighbors
-        (except possibly the starting infiltrated node) are infiltrated.
-        """
-        # Here, a node is considered freestanding if all its neighbors
-        # are not infiltrated.
-        for neighbor in self.neighbors[node]:
-            if self.infiltrated[neighbor] > 0:
-                return False
-        return True
-
-    def dfs_longest_path(self, current, visited):
-        """
-        Recursively search for the longest path starting from 'current'
-        that only visits nodes that are not infiltrated and are freestanding.
-
-        Args:
-            graph (nx.Graph): The input graph.
-            current (node): The current node.
-            visited (set): Nodes already visited in this path.
-            infiltrated (dict): Mapping from node to infiltration value.
-
-        Returns:
-            list: The longest valid path (as a list of nodes) starting at 'current'.
-        """
-        best_path = [current]
-        for neighbor in self.neighbors[current]:
-            if neighbor in visited:
-                continue
-            # We only allow neighbors that are not infiltrated...
-            if self.infiltrated[neighbor] > 0:
-                continue
-            # ...and that are freestanding (none of their neighbors are infiltrated).
-            if not self.is_freestanding(neighbor):
-                continue
-
-            # Explore deeper from this neighbor.
-            new_visited = visited | {neighbor}
-            candidate_path = self.dfs_longest_path(neighbor, new_visited)
-            if len(candidate_path) + 1 > len(best_path):
-                best_path = [current] + candidate_path
-        return best_path
-
-    def find_longest_freestanding_path(self):
-        """
-        Find the longest path in 'graph' starting from an infiltrated node and
-        going only over non-infiltrated nodes that are freestanding (none of their
-        neighbors are infiltrated).
-
-        Args:
-            graph (nx.Graph): The graph.
-            infiltrated (dict): Mapping from node to infiltration status/number.
-
-        Returns:
-            list: The longest path found, as a list of nodes.
-        """
-        best_overall = []
-        # Iterate over every node that is already infiltrated.
-        for node in self.graph.nodes():
-            if self.infiltrated[node] > 0:
-                # For each neighbor of the infiltrated node, if it's not infiltrated
-                # and is freestanding, try to build a path from it.
-                for neighbor in self.neighbors[node]:
-                    if self.infiltrated[neighbor] == 0 and self.is_freestanding(neighbor):
-                        # Use a visited set that initially includes the starting infiltrated node
-                        # (to avoid stepping back to it) and the neighbor.
-                        path = self.dfs_longest_path(self, neighbor, {node, neighbor})
-                        if len(path) > len(best_overall):
-                            best_overall = path
-        return best_overall
-
 
     def _update_sensor_reading(self):
         """
@@ -311,6 +251,13 @@ class NetworkDefenderEnv(gym.Env):
         print(f"Infiltrated Nodes: {self.infiltrated}")
         print(f"Sensor Reading: {self.sensor_reading}")
         print("")
+
+    def save_graph_image(self, graph, path):
+        plt.figure(figsize=(8, 6))
+        pos = nx.spring_layout(graph, seed=42)
+        nx.draw(graph, pos, with_labels=True, node_size=500, node_color='skyblue', edge_color='gray')
+        plt.savefig(path, dpi=300, bbox_inches='tight')
+        plt.close()
 
     def close(self):
         pass

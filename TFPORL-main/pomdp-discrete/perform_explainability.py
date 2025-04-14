@@ -61,13 +61,12 @@ def generate_trajs(learner: Learner, num_trajs: int):
 
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
         trajectory = np.transpose(trajectory, (2, 0, 1))
-        trajs.append(trajectory[:, :20, :])
+        trajs.append(trajectory[:, :50, :])
 
     return trajs
 
 
 def model_wrapper(obs_batch):
-    print('Model Wrapper called')
     with torch.no_grad():
         actions = []
         action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
@@ -127,7 +126,7 @@ def explain(learner: Learner, num_trajs: int = 3):
     avg_event = calc_avg_event(data=avg_data,
                                numerical_feats=model_features, categorical_feats=[]).astype(int)
     # Prepare TimeSHAP input dictionaries
-    pruning_dict = {'tol': 0.1}
+    pruning_dict = {'tol': 0.001}
     event_dict = {'rs': 42, 'nsamples': 100}
     feature_dict = {'rs': 42, 'nsamples': 100, 'feature_names': model_features, 'plot_features': plot_features}
     cell_dict = {'rs': 42, 'nsamples': 100, 'top_x_feats': 3, 'top_x_events': 3}
@@ -135,7 +134,8 @@ def explain(learner: Learner, num_trajs: int = 3):
     events = []
     features = []
 
-    for traj in trajectories:
+    for i, traj in enumerate(trajectories):
+        print(f"Trajectory {i + 1}/{num_trajs}")
         num_events = traj.shape[1]  # includes the pruned event slot
         num_features = traj.shape[2]  # includes the pruned feature slot
 
@@ -157,7 +157,7 @@ def explain(learner: Learner, num_trajs: int = 3):
         # === Handle events ===
         for _, row in event_data.iterrows():
             label = row["Feature"]
-            if label == "Pruned Events":
+            if label == "Pruned Features" or label == "Pruned Events":
                 idx = 0
                 #array_idx = num_events - 1  # last column
             else:
@@ -172,27 +172,22 @@ def explain(learner: Learner, num_trajs: int = 3):
 
             if 0 != idx:
                 event_array[idx] = abs(row["Shapley Value"])
-            else:
+            elif label == "Pruned Features" or label == "Pruned Events":
                 print(f"Invalid event index: {idx} for label: {label}")
 
         # === Handle features ===
         for _, row in feature_data.iterrows():
             label = row["Feature"]
-            if label == "Pruned Events":
-                array_idx = num_features - 1  # last column
+            if label == "Pruned Features" or label == "Pruned Events":
+                idx = -1
+                #array_idx = num_events - 1  # last column
             else:
-                match = re.search(r"Feature (-?\d+)", label)
-                if match:
-                    idx = int(match.group(1))
-                    array_idx = idx if idx >= 0 else num_features + idx - 1
-                else:
-                    print(f"Unrecognized feature label: {label}")
-                    continue
+                idx = int(label)
 
-            if 0 <= array_idx < num_features:
-                feature_array[array_idx] = row["Shapley Value"]
-            else:
-                print(f"Invalid feature index: {array_idx} for label: {label}")
+            if -1 != idx:
+                feature_array[idx] = abs(row["Shapley Value"])
+            elif label == "Pruned Features" or label == "Pruned Events":
+                print(f"Invalid feature index: {idx} for label: {label}")
 
         events.append(event_array)
         features.append(feature_array)
@@ -220,7 +215,18 @@ def explain(learner: Learner, num_trajs: int = 3):
     )
     """
 
-    plot_event_multi(events)
+    #plot_event_multi(events)
+
+    # Compute mean absolute Shapley values
+    importance = np.mean(np.abs(features), axis=0)
+    top_k = 20
+    top_indices = np.argsort(importance)[-top_k:][::-1]
+
+    # Slice features and names
+    features_top = features[:, top_indices]
+    feature_names_top = [plot_features[str(idx)] for idx in top_indices]
+
+    plot_feature_multi(features_top, feature_names_top, save_path="shapley_top_features.png")
 
     plt.show()
 
@@ -316,10 +322,65 @@ def plot_event_multi(events):
 
     plt.legend()
     plt.tight_layout()
+    plt.savefig("shapley_plot_lru.png", dpi=300, bbox_inches='tight')
+    plt.show()
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+
+def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_plot.png"):
+    features = np.array(features)
+    num_trajs, num_features = features.shape
+
+    # Set y-axis labels
+    if feature_names is None:
+        y_labels = [f"Feature {i}" for i in range(num_features)]
+    else:
+        y_labels = list(feature_names)
+
+    y_positions = np.arange(num_features)
+
+    plt.figure(figsize=(10, max(6, num_features * 0.4)))
+
+    # Plot individual Shapley values (horizontal scatter)
+    for i, y in enumerate(y_positions):
+        x_vals = features[:, i]
+        plt.scatter(
+            x_vals, [y] * len(x_vals),
+            color='mediumturquoise',
+            alpha=0.4,
+            s=100,
+            edgecolor='none',
+            label='Shapley Value' if i == 0 else None
+        )
+
+    # Plot mean Shapley values (horizontal red points)
+    mean_vals = np.mean(features, axis=0)
+    plt.scatter(
+        mean_vals, y_positions,
+        color='orangered',
+        s=100,
+        zorder=3,
+        label='Mean'
+    )
+
+    # Formatting
+    plt.yticks(y_positions, y_labels)
+    plt.xlabel("Shapley Value", fontsize=12)
+    plt.ylabel("Feature", fontsize=12)
+    plt.title("Feature-wise Shapley Values", fontsize=14, fontweight='bold')
+
+    # Grid: vertical only, dotted
+    plt.grid(axis='x', linestyle='--', alpha=0.5)
+    plt.grid(axis='y', visible=False)
+
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
 
-
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/mlp/seed-1')
+    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
     explain(learner, num_trajs=10)
