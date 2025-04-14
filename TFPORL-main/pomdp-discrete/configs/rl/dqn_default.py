@@ -27,11 +27,11 @@ def get_config():
     config.actor_lr = 1e-4
 
     config.config_critic = ConfigDict()
-    config.config_critic.hidden_dims = (512, 512)
+    config.config_critic.hidden_dims = (256, 256)
 
-    config.discount = 0.99
-    config.tau = 0.005
-    config.schedule_end = 0.3  # 0.1 good for TMaze-like envs
+    config.discount = 0.95
+    config.tau = 0.010
+    config.schedule_end = 0.2  # 0.1 good for TMaze-like envs
 
     config.replay_buffer_size = 1e6
     config.replay_buffer_num_episodes = 1e4

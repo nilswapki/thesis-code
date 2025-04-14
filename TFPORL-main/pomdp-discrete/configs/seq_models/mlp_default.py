@@ -19,9 +19,9 @@ def get_config():
     config.model.seq_model_config.name = "mlp"
     config.model.seq_model_config.hidden_size = 64
 
-    config.clip = False
-    config.max_norm = 1.0
-    config.use_l2_norm = False
+    config.clip = True
+    config.max_norm = 3.0
+    config.use_l2_norm = True
     
     config.model.observ_embedder = ConfigDict()
     config.model.observ_embedder.name = "mlp"
