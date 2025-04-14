@@ -1,0 +1,63 @@
+--config_env=env_name: 100
+env_type: network-defender
+eval_episodes: 5
+eval_interval: 100
+extra_edge_prob: 0.2
+n_nodes: 15
+noise_95_interval: 0.25
+noise_mean: 0.4
+recursive: false
+save_interval: 5000
+terminal_fn: !!python/name:configs.envs.terminal_fns.finite_horizon_terminal ''
+
+--config_rl=actor_lr: 0.0001
+algo: dqn
+config_critic:
+  hidden_dims: !!python/tuple
+  - 256
+  - 256
+critic_lr: 0.0001
+discount: 0.95
+end_eps: 0.01
+init_eps: 1.0
+replay_buffer_num_episodes: 10000.0
+replay_buffer_size: 1000000.0
+schedule_end: 0.5
+schedule_steps: 500000.0
+tau: 0.005
+
+--config_seq=clip: true
+is_attn: false
+is_markov: false
+max_norm: 3.0
+model:
+  action_embedder:
+    hidden_size: 16
+    name: mlp
+  observ_embedder:
+    hidden_size: 32
+    name: mlp
+  reward_embedder:
+    hidden_size: 0
+    name: mlp
+  seq_model_config:
+    hidden_size: 64
+    n_layer: 1
+    name: lstm
+sampled_seq_len: 100
+use_dropout: false
+use_l2_norm: true
+
+--noshared_encoder
+--nofreeze_critic
+--seeds=1,2,3
+--batch_size=64
+--train_episodes=10000
+--updates_per_step=0.5
+--start_training=10
+--nodebug
+--save_dir=logs
+
+--run_name=2025-04-08-12:34:23
+
+--sequential_model=lstm
