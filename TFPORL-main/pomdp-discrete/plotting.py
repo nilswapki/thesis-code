@@ -476,7 +476,7 @@ def load_csv(path):
 
 
 if __name__ == '__main__':
-    folder_path = 'logs_results/mini-cage/final/standard'
+    folder_path = 'TFPORL-main/pomdp-discrete/logs_results/network-defender/final/'
 
     plot_models(folder_path, feature='return', window_size=100)
     #plot_feature(folder_path=folder_path, feature='return')
