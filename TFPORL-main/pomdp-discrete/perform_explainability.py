@@ -26,7 +26,8 @@ def generate_trajs(learner: Learner, num_trajs: int):
     learner.agent.eval()  # Set the agent to evaluation mode
     trajs = []
 
-    for _ in range(num_trajs):
+    for i in range(num_trajs):
+        print(f"Generating trajectory {i + 1}/{num_trajs}")
         # Reset the environment
         action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
         obs, _ = learner.eval_env.reset()
@@ -53,7 +54,6 @@ def generate_trajs(learner: Learner, num_trajs: int):
             )
 
             action_index = torch.argmax(action, dim=-1).item()
-            print(f"Action: {action_index}, Reward: {reward}, Done: {done}")
 
             # Step the environment
             next_obs, reward, done, info = utl.env_step(learner.eval_env, action.squeeze(dim=0))
@@ -61,7 +61,7 @@ def generate_trajs(learner: Learner, num_trajs: int):
 
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
         trajectory = np.transpose(trajectory, (2, 0, 1))
-        trajs.append(trajectory[:, :50, :])
+        trajs.append(trajectory[:, :, :])
 
     return trajs
 
@@ -110,18 +110,19 @@ def model_wrapper(obs_batch):
         return np.array(actions).reshape(-1, 1)  # Ensure shape (#samples, 1)
 
 
-def explain(learner: Learner, num_trajs: int = 3):
+def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int = 20, model="", tag=""):
     # Evaluate the model
     learner.agent.eval()  # Set the agent to evaluation mode
 
     # Generate trajectories
-    trajectories = generate_trajs(learner, num_trajs=num_trajs)
+    trajectories = generate_trajs(learner, num_trajs=num_trajs+1)
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
-    plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}
+    plot_features = {f'{f}': f'Feature {f}' for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
     #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
-    avg_data = pd.DataFrame(trajectories[0].squeeze(0))
+    avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
+
     avg_data.columns = avg_data.columns.astype(str)
     avg_event = calc_avg_event(data=avg_data,
                                numerical_feats=model_features, categorical_feats=[]).astype(int)
@@ -129,18 +130,18 @@ def explain(learner: Learner, num_trajs: int = 3):
     pruning_dict = {'tol': 0.001}
     event_dict = {'rs': 42, 'nsamples': 100}
     feature_dict = {'rs': 42, 'nsamples': 100, 'feature_names': model_features, 'plot_features': plot_features}
-    cell_dict = {'rs': 42, 'nsamples': 100, 'top_x_feats': 3, 'top_x_events': 3}
+    cell_dict = {'rs': 42, 'nsamples': 100, 'top_x_feats': 1, 'top_x_events': 1}
 
     events = []
     features = []
 
     for i, traj in enumerate(trajectories):
-        print(f"Trajectory {i + 1}/{num_trajs}")
+        print(f"Explaining Trajectory {i + 1}/{num_trajs}")
         num_events = traj.shape[1]  # includes the pruned event slot
         num_features = traj.shape[2]  # includes the pruned feature slot
 
         # Run TimeSHAP
-        _, event_data, feature_data, _ = calc_local_report(
+        _, event_data, feature_data, cell_data = calc_local_report(
             f=model_wrapper,
             data=traj,
             pruning_dict=pruning_dict,
@@ -215,18 +216,17 @@ def explain(learner: Learner, num_trajs: int = 3):
     )
     """
 
-    #plot_event_multi(events)
+    plot_event_multi(events, last_k, save_path=f"explainability/minicage_{model}_{tag}_events_last{last_k}_traj{num_trajs}.png")
 
     # Compute mean absolute Shapley values
     importance = np.mean(np.abs(features), axis=0)
-    top_k = 20
     top_indices = np.argsort(importance)[-top_k:][::-1]
 
     # Slice features and names
     features_top = features[:, top_indices]
     feature_names_top = [plot_features[str(idx)] for idx in top_indices]
 
-    plot_feature_multi(features_top, feature_names_top, save_path="shapley_top_features.png")
+    plot_feature_multi(features_top, feature_names_top, save_path=f"explainability/minicage_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
 
     plt.show()
 
@@ -279,8 +279,9 @@ def plot_event_single(event_data, sort=False):
     plt.savefig('event_importance.png')
 
 
-def plot_event_multi(events):
+def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
     events = np.array(events)
+    events = events[:, -last_k:]  # keep all trajs, last 10 timesteps
     num_trajs, num_events = events.shape
 
     # X-axis: event indices from -N+1 to 0
@@ -322,11 +323,8 @@ def plot_event_multi(events):
 
     plt.legend()
     plt.tight_layout()
-    plt.savefig("shapley_plot_lru.png", dpi=300, bbox_inches='tight')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
-
-    import matplotlib.pyplot as plt
-    import numpy as np
 
 
 def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_plot.png"):
@@ -382,5 +380,5 @@ def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
-    explain(learner, num_trajs=10)
+    learner = initialize_learner_with_flags(save_dir='logs/minimal-test/100/mlp/2025-04-22-09:32:47/seed-1')
+    explain(learner, num_trajs=50, last_k=10, top_k=5, model="mlp", tag="validation_full")

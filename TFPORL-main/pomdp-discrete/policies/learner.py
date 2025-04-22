@@ -224,6 +224,7 @@ class Learner:
             #if self.train_env.name == "network-defender":
             #    obs = obs.reshape(obs.shape[-1], 1)
             done_rollout = False
+            #obs = obs.unsqueeze(0)  # minimal test env
 
             # for mini-cage
             valid_list_blue = []  # tracks if an action was valid or not
