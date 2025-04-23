@@ -24,7 +24,7 @@ class SimplifiedCAGEWrapper(gym.Env):
         if red_agents is not None:
             self.red_agents = red_agents
         else:
-            self.red_agents = [B_line_minimal(), Meander_minimal(), Blue_sleep()]
+            self.red_agents = [B_line_minimal()]
         self.current_red_agent_index = 0
 
         # Define the action space for BLUE agent

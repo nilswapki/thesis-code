@@ -450,7 +450,7 @@ def plot_models(superfolder_path, feature, window_size=10):
                  label=f'{model_folder} {feature_name}')
         plt.fill_between(range(max_length),
                          mean_smoothed - std_smoothed,
-                         np.minimum(mean_smoothed + std_smoothed, 0),  # maximum 0 for miniCAGE
+                         mean_smoothed + std_smoothed,  # np.minimum(mean_smoothed + std_smoothed, 0) for miniCAGE
                          color=color, alpha=0.3)
 
     # Final plot settings.
@@ -476,7 +476,7 @@ def load_csv(path):
 
 
 if __name__ == '__main__':
-    folder_path = 'TFPORL-main/pomdp-discrete/logs_results/network-defender/final/'
+    folder_path = 'logs_results/network-defender/final/'
 
     plot_models(folder_path, feature='return', window_size=100)
     #plot_feature(folder_path=folder_path, feature='return')

@@ -1515,14 +1515,18 @@ class SimplifiedCAGE(gym.Env):
             str: The name of the feature corresponding to the given index.
         """
         # 2n scan activity, 2n host safety, n prior scans, n decoy info --> 6n
-        if feature_index < 2 * self.num_nodes:  # Scan activity features (2n)
-            return f"Scan Activity Node {feature_index + 1}"
+        if feature_index < 1 * self.num_nodes:  # Scan activity features (2n)
+            return f"Activity (Past) {HOSTS[feature_index]}"
+        elif feature_index < 2 * self.num_nodes:  # Scan activity features (2n)
+            return f"Activity (Current) {HOSTS[feature_index - 1 * self.num_nodes]}"
+        elif feature_index < 3 * self.num_nodes:  # Host safety features (2n)
+            return f"Host Safety {HOSTS[feature_index - 2 * self.num_nodes]}"
         elif feature_index < 4 * self.num_nodes:  # Host safety features (2n)
-            return f"Host Safety Node {feature_index - 2 * self.num_nodes + 1}"
+            return f"Privilege Level {HOSTS[feature_index - 3 * self.num_nodes]}"
         elif feature_index < 5 * self.num_nodes:  # Prior scans features (n)
-            return f"Prior Scan Node {feature_index - 4 * self.num_nodes + 1}"
+            return f"Prior Scan {HOSTS[feature_index - 4 * self.num_nodes]}"
         elif feature_index < 6 * self.num_nodes:  # Decoy info features (n)
-            return f"Decoy Info Node {feature_index - 5 * self.num_nodes + 1}"
+            return f"Decoy Info {HOSTS[feature_index - 5 * self.num_nodes]}"
         else:
             return "Unknown Feature"
 
