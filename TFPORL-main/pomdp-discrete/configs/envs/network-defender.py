@@ -39,8 +39,8 @@ def get_config():
 
     config.n_nodes = 15
     config.extra_edge_prob = 0.2
-    config.noise_mean = 0.4
-    config.noise_95_interval = 0.25
+    config.noise_mean = 0.0  # 0.4
+    config.noise_95_interval = 0.0  # 0.25
     config.recursive = False
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]

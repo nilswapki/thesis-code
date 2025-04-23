@@ -61,7 +61,7 @@ def generate_trajs(learner: Learner, num_trajs: int):
 
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
         trajectory = np.transpose(trajectory, (2, 0, 1))
-        trajs.append(trajectory[:, :50, :])
+        trajs.append(trajectory[:, :, :])
 
     return trajs
 
