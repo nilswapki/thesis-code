@@ -29,9 +29,9 @@ class MinimalTestEnv(gym.Env):
 
         # Reward depends only on feature[2] and action
         if action == 1:
-            reward = self.state[2]  # only feature[2] matters
+            reward = 10 * self.state[2]  # only feature[2] matters
         else:
-            reward = -self.state[2]
+            reward = -10 * self.state[2]
 
         # New random state
         self.state = np.random.uniform(-1.0, 1.0, size=(self.num_features,))

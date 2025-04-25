@@ -31,6 +31,8 @@ def generate_trajs(learner: Learner, num_trajs: int):
         # Reset the environment
         action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
         obs, _ = learner.eval_env.reset()
+        if obs.shape[0] == 1:
+            obs = obs.reshape(-1, 1)
         obs = ptu.from_numpy(obs)
 
         trajectory = []  # Store trajectory for TimeSHAP in numpy array
@@ -216,7 +218,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     )
     """
 
-    plot_event_multi(events, last_k, save_path=f"explainability/minicage_{model}_{tag}_events_last{last_k}_traj{num_trajs}.png")
+    plot_event_multi(events, last_k, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.png")
 
     # Compute mean absolute Shapley values
     importance = np.mean(np.abs(features), axis=0)
@@ -226,7 +228,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     features_top = features[:, top_indices]
     feature_names_top = [plot_features[str(idx)] for idx in top_indices]
 
-    plot_feature_multi(features_top, feature_names_top, save_path=f"explainability/minicage_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
+    plot_feature_multi(features_top, feature_names_top, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
 
     plt.show()
 
@@ -380,5 +382,5 @@ def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs/minimal-test/100/mlp/2025-04-22-09:32:47/seed-1')
-    explain(learner, num_trajs=50, last_k=10, top_k=5, model="mlp", tag="validation_full")
+    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/mamba/seed-1')
+    explain(learner, num_trajs=5, last_k=10, top_k=5, model="mamba", tag="test")

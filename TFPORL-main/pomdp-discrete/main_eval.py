@@ -18,7 +18,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/minimal-test.py",
+    "configs/envs/network-defender.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
@@ -64,6 +64,9 @@ flags.DEFINE_string("run_name", None, "used in sbatch")
 def load_flags_from_pkl(pkl_path):
     """Load flags from a pickled file and set them in FLAGS."""
     with open(pkl_path, "rb") as f:
+        print("Cursor before load:", f.tell())
+        #first_bytes = f.read(1000)
+        print("Cursor before load:", f.tell())
         flag_values = pickle.load(f)
         for key, value in flag_values.items():
             # Set the required flags only
@@ -102,6 +105,7 @@ def initialize_learner_with_flags(save_dir=None):
         raise ValueError('Please specify a directory')
 
     # Load the flags
+    pkl_path = 'logs_results/mini-cage/final/standard/lstm/seed-1/flags.pkl'  #logs_results/mini-cage/final/preliminary/mamba/seed-1/flags.pkl'
     load_flags_from_pkl(os.path.join(save_dir, "flags.pkl"))
 
     gpu_mode_bool = ((torch.cuda.is_available() or torch.backends.mps.is_available())
@@ -136,4 +140,4 @@ def initialize_learner_with_flags(save_dir=None):
 
 
 if __name__ == "__main__":
-    initialize_learner_with_flags('x')
+    initialize_learner_with_flags('logs_results/network-defender/final/mamba/seed-1')
