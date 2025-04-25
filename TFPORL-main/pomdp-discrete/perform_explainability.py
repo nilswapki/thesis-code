@@ -18,7 +18,8 @@ import utils.helpers as utl
 import altair_saver
 import re
 
-matplotlib.use('TkAgg')  # Use the standard interactive backend
+if not torch.cuda.is_available():
+    matplotlib.use('TkAgg')  # Use the standard interactive backend
 
 
 def generate_trajs(learner: Learner, num_trajs: int):
@@ -41,7 +42,10 @@ def generate_trajs(learner: Learner, num_trajs: int):
             # Store the current observation for TimeSHAP
             trajectory.append(obs.clone().detach())
 
-            device = 'mps:0'
+            if torch.cuda.is_available():
+                device = 'cuda:0'
+            else:
+                device = 'mps:0'
             action = action.to(device)
             reward = reward.to(device)
             obs = obs.to(device)
@@ -86,7 +90,11 @@ def model_wrapper(obs_batch):
             for i in range(obs_batch.shape[1]):
                 obs_adjusted = obs_batch[sample, i, :].unsqueeze(0)  # Shape: (1, 1, #features)
 
-                device = 'mps:0'
+                if torch.cuda.is_available():
+                    device = 'cuda:0'
+                else:
+                    device = 'mps:0'
+
                 action = action.to(device)
                 reward = reward.to(device)
                 obs_adjusted = obs_adjusted.to(device)
