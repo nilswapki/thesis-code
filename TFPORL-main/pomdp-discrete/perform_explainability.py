@@ -17,6 +17,7 @@ import torchkit.pytorch_utils as ptu
 import utils.helpers as utl
 import altair_saver
 import re
+from sklearn.preprocessing import minmax_scale
 
 matplotlib.use('TkAgg')  # Use the standard interactive backend
 
@@ -283,7 +284,16 @@ def plot_event_single(event_data, sort=False):
 
 def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
     events = np.array(events)
-    events = events[:, -last_k:]  # keep all trajs, last 10 timesteps
+    events = events[:, -last_k:]  # keep all trajs, last k timesteps
+
+    # Min-max scaling
+    event_min = np.min(events)
+    event_max = np.max(events)
+    if event_min != event_max:
+        events = (events - event_min) / (event_max - event_min)
+    else:
+        events = np.zeros_like(events)
+
     num_trajs, num_events = events.shape
 
     # X-axis: event indices from -N+1 to 0
@@ -331,6 +341,15 @@ def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
 
 def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_plot.png"):
     features = np.array(features)
+
+    # Min-max scaling
+    feature_min = np.min(features)
+    feature_max = np.max(features)
+    if feature_min != feature_max:
+        features = (features - feature_min) / (feature_max - feature_min)
+    else:
+        features = np.zeros_like(features)
+
     num_trajs, num_features = features.shape
 
     # Set y-axis labels
@@ -382,5 +401,5 @@ def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/mamba/seed-1')
-    explain(learner, num_trajs=5, last_k=10, top_k=5, model="mamba", tag="test")
+    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/lstm/seed-1')
+    explain(learner, num_trajs=2, last_k=10, top_k=5, model="mamba", tag="test")
