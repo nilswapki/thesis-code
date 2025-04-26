@@ -307,7 +307,7 @@ def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
     # X-axis: event indices from -N+1 to 0
     x_labels = list(range(-num_events + 1, 1))
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(16, 6))
 
     # Plot individual Shapley values
     for i, x in enumerate(x_labels):
@@ -409,5 +409,5 @@ def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/lstm/seed-1')
-    explain(learner, num_trajs=2, last_k=10, top_k=5, model="mamba", tag="test")
+    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/mlp/seed-1')
+    explain(learner, num_trajs=100, last_k=50, top_k=20, model="mlp", tag="final")
