@@ -130,7 +130,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
-    plot_features = {f'{f}': f'Feature {f}' for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
+    plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
     #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
     avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
 
@@ -208,6 +208,16 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     events = np.array(events)  # shape: (num_trajs, num_events)
     features = np.array(features)  # shape: (num_trajs, num_features)
 
+    # Save events
+    events_save_path = f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.npy"
+    np.save(events_save_path, events)
+
+    # Save features_top
+    features_save_path = f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.npz"
+    np.savez(features_save_path,
+             features=features,
+             plot_features=plot_features)
+
     """
     data_list = []
     for i, traj in enumerate(trajectories):
@@ -229,15 +239,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
 
     plot_event_multi(events, last_k, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.png")
 
-    # Compute mean absolute Shapley values
-    importance = np.mean(np.abs(features), axis=0)
-    top_indices = np.argsort(importance)[-top_k:][::-1]
-
-    # Slice features and names
-    features_top = features[:, top_indices]
-    feature_names_top = [plot_features[str(idx)] for idx in top_indices]
-
-    plot_feature_multi(features_top, feature_names_top, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
+    plot_feature_multi(features, plot_features, top_k, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
 
     plt.show()
 
@@ -290,9 +292,22 @@ def plot_event_single(event_data, sort=False):
     plt.savefig('event_importance.png')
 
 
-def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
+def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_event_plot.png"):
+    if events is None:
+        assert load_path is not None, "Either events or load_path must be provided."
+        events = np.load(load_path)
+        save_path = load_path.replace(".npy", ".png")
+
     events = np.array(events)
     events = events[:, -last_k:]  # keep all trajs, last k timesteps
+
+    mean_vals = np.mean(events, axis=0)
+
+
+    # Scaling factor to shift event 0 mean to 0.5
+    #scale = 0.5 / np.max(mean_vals) if np.max(mean_vals) != 0 else 1.0
+    #events = events * scale
+
 
     # Min-max scaling
     event_min = np.min(events)
@@ -322,7 +337,6 @@ def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
         )
 
     # Plot mean Shapley values
-    mean_vals = np.mean(events, axis=0)
     plt.scatter(
         x_labels, mean_vals,
         color='orangered',
@@ -335,7 +349,7 @@ def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
     plt.xticks(x_labels)
     plt.xlabel("Event index", fontsize=12)
     plt.ylabel("Shapley Value", fontsize=12)
-    plt.title("Shapley Value", fontsize=14, fontweight='bold')
+    plt.title("Event-wise Shapley Values", fontsize=14, fontweight='bold')
 
     # Grid: horizontal only, dotted and semi-transparent
     plt.grid(axis='y', linestyle='--', alpha=0.5)
@@ -347,8 +361,23 @@ def plot_event_multi(events, last_k=10, save_path="shapley_event_plot.png"):
     plt.show()
 
 
-def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_plot.png"):
-    features = np.array(features)
+def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=None, save_path="shapley_feature_plot.png"):
+    if features is None:
+        assert load_path is not None, "Either events or load_path must be provided."
+        loaded = np.load(load_path, allow_pickle=True)
+        features = loaded['features']
+        plot_features = loaded['plot_features'].item()  # because it's a saved dict
+        save_path = load_path.replace(".npz", ".png")
+    else:
+        features = np.array(features)
+
+    # Compute mean absolute Shapley values
+    importance = np.mean(np.abs(features), axis=0)
+    top_indices = np.argsort(importance)[-top_k:][::-1]
+
+    # Slice features and names
+    features = features[:, top_indices]
+    feature_names = [plot_features[str(idx)] for idx in top_indices]
 
     # Min-max scaling
     feature_min = np.min(features)
@@ -409,5 +438,9 @@ def plot_feature_multi(features, feature_names=None, save_path="shapley_feature_
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/mlp/seed-1')
-    explain(learner, num_trajs=100, last_k=50, top_k=20, model="mlp", tag="final")
+    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/lru/seed-1')
+    explain(learner, num_trajs=100, last_k=50, top_k=20, model="lru", tag="test")
+
+    #plot_event_multi(load_path='explainability/mini-cage_lstm_test_events_last50_traj2.npy', last_k=50)
+    #plot_feature_multi(load_path='explainability/mini-cage_lstm_test_features_top20_traj2.npz', top_k=20)
+
