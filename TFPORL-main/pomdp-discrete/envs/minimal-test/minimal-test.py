@@ -10,7 +10,7 @@ class MinimalTestEnv(gym.Env):
         self.num_envs = num_envs
         self.num_features = 5
         self.steps_taken = 0
-        self.episode_length = 10
+        self.episode_length = 100
 
         self.action_space = spaces.Discrete(2)  # 0 or 1
         self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(self.num_features,), dtype=np.float32)
@@ -18,7 +18,6 @@ class MinimalTestEnv(gym.Env):
         self.state = None
 
     def reset(self, *, seed=None, options=None):
-        print("New Episode")
         super().reset(seed=seed)
         self.steps_taken = 0
         self.state = np.random.uniform(-1.0, 1.0, size=(self.num_features,))

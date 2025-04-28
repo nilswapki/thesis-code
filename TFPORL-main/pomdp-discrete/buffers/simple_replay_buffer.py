@@ -62,6 +62,15 @@ class SimpleReplayBuffer(ReplayBuffer):
         timeout=None,
         **kwargs
     ):
+
+        # CHANGED: squeeze the last dim if there are too many
+        if observation.shape == (observation.shape[0], 1):
+            observation = observation.squeeze(axis=-1)
+        if next_observation.shape == (next_observation.shape[0], 1):
+            next_observation = next_observation.squeeze(axis=-1)
+        #if action.shape == (action.shape[0], 1):
+        #    action = action.squeeze(axis=-1)
+
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward

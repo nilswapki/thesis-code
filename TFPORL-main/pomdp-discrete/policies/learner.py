@@ -243,6 +243,8 @@ class Learner:
                     [],
                     [],
                 )
+            else:
+                rew_list = []
 
             if self.agent_arch == AGENT_ARCHS.Memory and not random_actions:
                 # get hidden state at timestep=0, None for markov
@@ -308,6 +310,7 @@ class Learner:
                         terminal=np.array([term], dtype=float),
                         next_observation=ptu.get_numpy(next_obs.squeeze(dim=0)),
                     )
+                    rew_list.append(reward)
                 else:  # append tensors to temporary storage
                     obs_list.append(obs)  # (1, dim)
                     act_list.append(action)  # (1, dim)
@@ -358,6 +361,12 @@ class Learner:
                     f"Reward: {total_reward:05.2f} --- "
                     f"Unnecessary Restorations: {restorations:02d} --- "
                     f"Infiltrations: {infiltrations:03d}")
+            else:
+                print(
+                    f"Episode: {self._n_rollouts_total:03d} --- "
+                    f"Steps: {steps:03d} --- "
+                    f"Reward: {total_reward:05.2f} --- ")
+
 
             if self.train_env.name == 'mini-cage' or self.train_env.name == 'mini-cage-red':
                 self.log_training(reward=total_reward, success=False, total_steps=steps,
