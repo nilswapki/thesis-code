@@ -30,7 +30,7 @@ class ModelFreeOffPolicy_DQN_RNN(nn.Module):
         self.action_dim = action_dim
         self.gamma = config_rl.discount
         self.tau = config_rl.tau
-        self.clip = True #config_seq.clip
+        self.clip = config_seq.clip
         self.clip_grad_norm = config_seq.max_norm
 
         self.algo = RL_ALGORITHMS[config_rl.algo](

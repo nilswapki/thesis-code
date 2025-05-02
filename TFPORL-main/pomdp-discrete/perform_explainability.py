@@ -130,7 +130,11 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
-    plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
+    if learner.FLAGS.config_env.env_type == 'mini-cage':
+        plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
+    else:
+        plot_features = {f'{f}': f'Event {f}' for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
+
     #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
     avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
 
@@ -301,9 +305,6 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
     events = np.array(events)
     events = events[:, -last_k:]  # keep all trajs, last k timesteps
 
-    mean_vals = np.mean(events, axis=0)
-
-
     # Scaling factor to shift event 0 mean to 0.5
     #scale = 0.5 / np.max(mean_vals) if np.max(mean_vals) != 0 else 1.0
     #events = events * scale
@@ -316,6 +317,8 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
         events = (events - event_min) / (event_max - event_min)
     else:
         events = np.zeros_like(events)
+
+    mean_vals = np.mean(events, axis=0)
 
     num_trajs, num_events = events.shape
 
@@ -438,9 +441,9 @@ def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=No
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/lru/seed-1')
-    explain(learner, num_trajs=100, last_k=50, top_k=20, model="lru", tag="test")
+    learner = initialize_learner_with_flags(save_dir='logs/mini-cage/100/mamba/2025-03-24-11:38:38/seed-4')
+    explain(learner, num_trajs=100, last_k=50, top_k=20, model="mamba", tag="final2")
 
-    #plot_event_multi(load_path='explainability/mini-cage_lstm_test_events_last50_traj2.npy', last_k=50)
+    #plot_event_multi(load_path='explainability/network-defender_mlp_final_events_last50_traj100.npy', last_k=50)
     #plot_feature_multi(load_path='explainability/mini-cage_lstm_test_features_top20_traj2.npz', top_k=20)
 
