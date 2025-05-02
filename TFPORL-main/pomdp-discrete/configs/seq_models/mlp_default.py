@@ -19,7 +19,7 @@ def get_config():
     config.model.seq_model_config.name = "mlp"
     config.model.seq_model_config.hidden_size = 64
 
-    config.clip = True
+    config.clip = False
     config.max_norm = 3.0
     config.use_l2_norm = True
     

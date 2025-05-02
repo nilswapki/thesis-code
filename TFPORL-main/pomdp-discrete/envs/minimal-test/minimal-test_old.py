@@ -16,33 +16,24 @@ class MinimalTestEnv(gym.Env):
         self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(self.num_features,), dtype=np.float32)
 
         self.state = None
-        # Assign each feature a different oscillation speed
-        self.freqs = np.linspace(0.05, 0.25, self.num_features)  # Different speeds for each feature
-        self.time = 0  # Global time counter
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         self.steps_taken = 0
-        self.time = 0
-        self.state = np.sin(self.freqs * self.time * 2 * np.pi)
+        self.state = np.random.uniform(-1.0, 1.0, size=(self.num_features,))
         return self.state.reshape(-1, 1), {}
 
     def step(self, action):
         self.steps_taken += 1
-        self.time += 1
 
-        # Update state: each feature is a sine wave oscillating differently
-        self.state = np.sin(self.freqs * self.time * 2 * np.pi)
-
-        # Reward depends strongly on feature[2] and feature[4]
-        feature2 = self.state[2]
-        feature4 = self.state[4]
-
+        # Reward depends only on feature[2] and action
         if action == 1:
-            reward = 5 * feature2 + 3 * feature4
+            reward = 10 * self.state[2]  # only feature[2] matters
         else:
-            reward = -5 * feature2 + 2 * feature4
+            reward = -10 * self.state[2]
 
+        # New random state
+        self.state = np.random.uniform(-1.0, 1.0, size=(self.num_features,))
         terminated = self.steps_taken >= self.episode_length
         truncated = False
         return self.state.reshape(1, -1), reward, terminated, truncated, {}
@@ -54,6 +45,7 @@ class MinimalTestEnv(gym.Env):
         pass
 
     def seed(self, seed=None):
+        # Set the seed using the reset method
         self.reset(seed=seed)
         if hasattr(self.action_space, 'seed'):
             self.action_space.seed(seed)
@@ -61,4 +53,5 @@ class MinimalTestEnv(gym.Env):
             self.observation_space.seed(seed)
 
     def eval(self):
+        # TODO: Add evaluation-specific logic here if needed
         pass

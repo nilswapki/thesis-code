@@ -133,13 +133,13 @@ class NetworkDefenderEnv(gym.Env):
         self.sensor_reading = np.zeros(self.n_nodes, dtype=np.float32)
 
         # Place attacker at a random node.
-        self.initial_attacker_node = np.random.randint(0, self.n_nodes)
+        self.initial_attacker_node = 1  #np.random.randint(0, self.n_nodes)
 
         self.infiltrated[self.initial_attacker_node] = 1
         self.passively_infiltrated = []
         self.last_infiltrated = self.initial_attacker_node
 
-        return self._get_obs(), {}
+        return self._get_obs(), {"newly_infiltrated": [], "restoration_occurred": 0}
 
     def step(self, action):
         if self.done:
@@ -152,12 +152,14 @@ class NetworkDefenderEnv(gym.Env):
 
         reward = 0
         self.timestep += 1
-        restore_necessary = 0
+        restore_unnecessary = 0
+        restoration_occured = 0
 
         # -------- Defender --------
         # 0:n_nodes-1: Restore node
         # n_nodes: Do nothing
         if action != self.n_nodes:
+            restoration_occured = 1
             # If node to be restored is actually infiltrated, restore it
             if (action != self.initial_attacker_node) and (self.infiltrated[action] > 0):  # cannot restore the initial foothold of the attacker
                 reward += max((2 - (0.2 * self.infiltrated[action])), 0)
@@ -170,7 +172,7 @@ class NetworkDefenderEnv(gym.Env):
             # If node to be restored is not actively or passively infiltrated, penalize.
             else:
                 reward -= 1
-                restore_necessary = 1
+                restore_unnecessary = 1
 
             if self.recursive:
                 # check for every infiltrated node if there still is a path to the initial foothold, if not, restore it
@@ -186,6 +188,7 @@ class NetworkDefenderEnv(gym.Env):
         # -------- Attacker --------
         # on average, the attacker infiltrates a new node every two timesteps
         # draw from poisson distribution to allow the attacker to potentially infiltrate several times in one timestep
+        newly_infiltrated = []
         for i in range(np.random.poisson(0.5)):
 
             # obtain all nodes adjacent to infiltrated nodes
@@ -214,10 +217,13 @@ class NetworkDefenderEnv(gym.Env):
                     if self.neighbors[self.last_infiltrated] in adj_nodes:
                         self.last_infiltrated = random.choice(self.neighbors[self.last_infiltrated])
                         self.infiltrated[self.last_infiltrated] = 1
+                        newly_infiltrated.append(self.last_infiltrated)
                     # pick random node from available nodes
                     else:
                         self.last_infiltrated = random.choice(adj_nodes)
                         self.infiltrated[self.last_infiltrated] = 1
+                        newly_infiltrated.append(self.last_infiltrated)
+
 
             if self.recursive:
                 # for every passively infiltrated node, check if it can be reached by the attacker
@@ -238,7 +244,7 @@ class NetworkDefenderEnv(gym.Env):
         self._update_sensor_reading()
         obs = self._get_obs()
         info = {"initial_attacker_node": self.initial_attacker_node, "infiltrated_nodes": self.infiltrated,
-                "restored": restore_necessary}
+                "restored": restore_unnecessary, "newly_infiltrated": newly_infiltrated, "restoration_occured": restoration_occured}
         return obs, reward, self.done, info
 
 

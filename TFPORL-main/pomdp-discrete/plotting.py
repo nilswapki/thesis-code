@@ -236,7 +236,7 @@ def aggregate_main_metrics(folder_path, window_size=10):
 
 
 
-def plot_feature(folder_path, feature, window_size=10):
+def plot_feature(folder_path, feature, window_size=100):
     data = []
 
     train_features = ["env_steps", "return", "invalid_actions_blue", "invalid_actions_red", "length", "FPS", "time", "restorations", "infiltrations"]

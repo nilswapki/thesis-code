@@ -27,17 +27,22 @@ def generate_trajs(learner: Learner, num_trajs: int):
     # Evaluate the model
     learner.agent.eval()  # Set the agent to evaluation mode
     trajs = []
+    infiltrations = []
+    restorations = []
 
     for i in range(num_trajs):
         print(f"Generating trajectory {i + 1}/{num_trajs}")
         # Reset the environment
         action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
-        obs, _ = learner.eval_env.reset()
+        obs, info = learner.eval_env.reset()
         if obs.shape[0] == 1:
             obs = obs.reshape(-1, 1)
         obs = ptu.from_numpy(obs)
 
         trajectory = []  # Store trajectory for TimeSHAP in numpy array
+        infiltrations_episode = []  # Store infiltrations for this episode
+        restorations_episode = []
+
         done = False
         while not done:
             # Store the current observation for TimeSHAP
@@ -65,12 +70,16 @@ def generate_trajs(learner: Learner, num_trajs: int):
             # Step the environment
             next_obs, reward, done, info = utl.env_step(learner.eval_env, action.squeeze(dim=0))
             obs = next_obs.clone()
+            infiltrations_episode.append(info["newly_infiltrated"])
+            restorations_episode.append(info["restoration_occured"])
 
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
         trajectory = np.transpose(trajectory, (2, 0, 1))
         trajs.append(trajectory[:, :, :])
+        infiltrations.append(infiltrations_episode)
+        restorations.append(restorations_episode)
 
-    return trajs
+    return trajs, infiltrations, restorations
 
 
 def model_wrapper(obs_batch):
@@ -130,10 +139,10 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
-    if learner.FLAGS.config_env.env_type == 'mini-cage':
+    if learner.FLAGS.config_env.env_type == "mini-cage":
         plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
     else:
-        plot_features = {f'{f}': f'Event {f}' for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
+        plot_features = {f'{f}': f'Feature {f}' for f in range(trajectories[0].shape[2])}
 
     #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
     avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
@@ -305,6 +314,9 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
     events = np.array(events)
     events = events[:, -last_k:]  # keep all trajs, last k timesteps
 
+    mean_vals = np.mean(events, axis=0)
+
+
     # Scaling factor to shift event 0 mean to 0.5
     #scale = 0.5 / np.max(mean_vals) if np.max(mean_vals) != 0 else 1.0
     #events = events * scale
@@ -317,8 +329,6 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
         events = (events - event_min) / (event_max - event_min)
     else:
         events = np.zeros_like(events)
-
-    mean_vals = np.mean(events, axis=0)
 
     num_trajs, num_events = events.shape
 
@@ -370,6 +380,7 @@ def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=No
         loaded = np.load(load_path, allow_pickle=True)
         features = loaded['features']
         plot_features = loaded['plot_features'].item()  # because it's a saved dict
+        plot_features = {k: v.replace('Event', 'Node') if isinstance(v, str) else v for k, v in plot_features.items()}
         save_path = load_path.replace(".npz", ".png")
     else:
         features = np.array(features)
@@ -439,11 +450,153 @@ def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=No
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+def plot_infiltration_timing(infiltrations, save_path="infiltration_timing_plot.png"):
+    """
+    infiltrations: List of lists (episodes × timesteps) containing lists of newly infiltrated nodes
+    """
+    # Flatten into a list of (episode, timestep) where infiltration happened
+    infiltration_times = []
+    for ep_idx, episode in enumerate(infiltrations):
+        for t_idx, newly_infiltrated in enumerate(episode):
+            if newly_infiltrated:  # if list is not empty
+                infiltration_times.extend([t_idx] * len(newly_infiltrated))
+
+    if len(infiltration_times) == 0:
+        print("No infiltrations recorded.")
+        return
+
+    infiltration_times = np.array(infiltration_times)
+
+    infiltration_counts = np.zeros(100, dtype=int)
+    for t in infiltration_times:
+        infiltration_counts[t] += 1
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(16, 6))
+    bars = ax.bar(np.arange(50), infiltration_counts[50:], color='mediumturquoise', edgecolor='black', alpha=0.7)
+
+    # Set custom x-ticks
+    ax.set_xticks(np.arange(0, 50))  # 50 bars
+    ax.set_xticklabels([str(-i) for i in range(49, -1, -1)])  # From -49 to 0
+
+    # Axis labels
+    ax.set_xlabel("Timesteps (relative to end)", fontsize=12)
+    ax.set_ylabel("Number of Infiltrations", fontsize=12)
+    ax.set_title("Infiltrations in Last 50 Timesteps", fontsize=14, fontweight='bold')
+
+    # Grid styling
+    ax.grid(axis='y', linestyle='--', alpha=0.5)
+    ax.grid(axis='x', visible=False)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_infiltration_nodes(infiltrations, save_path=""):
+    node_count = np.zeros(15, dtype=int)
+    for episode in infiltrations:
+        for newly_infiltrated in episode:
+            for node in newly_infiltrated:
+                node_count[node] += 1
+
+    num_nodes = len(node_count)
+    node_ids = np.arange(num_nodes)
+
+    # Sort by infiltration count (ascending for "most at bottom")
+    sort_idx = np.argsort(-node_count)
+    sorted_counts = node_count[sort_idx]
+    sorted_labels = [f"Node {i}" for i in sort_idx]
+
+    # Plot
+    plt.figure(figsize=(10, max(6, num_nodes * 0.4)))
+    y_positions = np.arange(num_nodes)
+
+    plt.barh(y_positions, sorted_counts, color='mediumturquoise', edgecolor='black', alpha=0.7)
+    plt.yticks(y_positions, sorted_labels)
+    plt.xlabel("Number of Infiltrations", fontsize=12)
+    plt.ylabel("Node", fontsize=12)
+    plt.title("Node-wise Infiltration Frequency", fontsize=14, fontweight='bold')
+    plt.grid(axis='x', linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def plot_variance_timesteps(trajs):
+    # Stack into (num_trajs, 100, 15)
+    stacked = np.concatenate(trajs, axis=0)  # shape: (num_trajs, 100, 15)
+
+    # Compute variance across trajectories: axis=0
+    var_across_trajs = np.var(stacked, axis=0)  # shape: (100, 15)
+
+    # Average variance over the 15 features (nodes) per timestep
+    mean_variance_per_timestep = np.mean(var_across_trajs, axis=1)  # shape: (100,)
+
+    # Bar plot
+    plt.figure(figsize=(16, 5))
+    plt.bar(np.arange(50), mean_variance_per_timestep[50:], color='mediumturquoise', edgecolor='black', alpha=0.7)
+
+    plt.xlabel("Timestep (relative to end)", fontsize=12)
+    plt.ylabel("Avg Variance Across Nodes", fontsize=12)
+    plt.title("Observation Variance Across Trajectories (Last 50 Timesteps)", fontsize=14, fontweight='bold')
+    plt.grid(axis='y', linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    #plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def plot_restoration_occured(restorations):
+    # Flatten into a list of (episode, timestep) where infiltration happened
+    restoration_times = []
+    for ep_idx, episode in enumerate(restorations):
+        for t_idx, restored in enumerate(episode):
+            if restored:  # if list is not empty
+                restoration_times.extend([t_idx])
+
+    if len(restoration_times) == 0:
+        print("No infiltrations recorded.")
+        return
+
+    infiltration_times = np.array(restoration_times)
+
+    restoration_counts = np.zeros(100, dtype=int)
+    for t in restoration_times:
+        restoration_counts[t] += 1
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(16, 6))
+    bars = ax.bar(np.arange(50), restoration_counts[50:], color='mediumturquoise', edgecolor='black', alpha=0.7)
+
+    # Set custom x-ticks
+    ax.set_xticks(np.arange(0, 50))  # 50 bars
+    ax.set_xticklabels([str(-i) for i in range(49, -1, -1)])  # From -49 to 0
+
+    # Axis labels
+    ax.set_xlabel("Timesteps (relative to end)", fontsize=12)
+    ax.set_ylabel("Number of Restorations", fontsize=12)
+    ax.set_title("Restorations in Last 50 Timesteps", fontsize=14, fontweight='bold')
+    ax.set_ylim(bottom=50)
+    # Grid styling
+    ax.grid(axis='y', linestyle='--', alpha=0.5)
+    ax.grid(axis='x', visible=False)
+
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs/mini-cage/100/mamba/2025-03-24-11:38:38/seed-4')
-    explain(learner, num_trajs=100, last_k=50, top_k=20, model="mamba", tag="final2")
+    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/lstm/seed-1')
+    #explain(learner, num_trajs=5, last_k=50, top_k=5, model="mlp", tag="new_env")
 
-    #plot_event_multi(load_path='explainability/network-defender_mlp_final_events_last50_traj100.npy', last_k=50)
-    #plot_feature_multi(load_path='explainability/mini-cage_lstm_test_features_top20_traj2.npz', top_k=20)
+    trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
+    #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
+    #plot_infiltration_timing(infiltrations)
+    #plot_variance_timesteps(trajs)
+    plot_restoration_occured(restorations)
+
+    #plot_event_multi(load_path='explainability/mini-cage_lstm_test_events_last50_traj2.npy', last_k=50)
+    #plot_feature_multi(load_path='explainability/network-defender_lru_final_features_top10_traj100.npz', top_k=15)
 
