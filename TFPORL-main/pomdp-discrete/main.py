@@ -36,7 +36,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/network-defender.py",
+    "configs/envs/minimal-test.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
@@ -66,7 +66,7 @@ flags.DEFINE_boolean(
 # training settings
 flags.DEFINE_list("seeds", [1], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 3000, "Number of episodes during training.")
+flags.DEFINE_integer("train_episodes", 500, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 1.0, "Gradient updates per step.")
 flags.DEFINE_integer("start_training", 10, "Number of episodes to start training.")
 
