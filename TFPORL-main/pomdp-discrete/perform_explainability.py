@@ -70,16 +70,20 @@ def generate_trajs(learner: Learner, num_trajs: int):
             # Step the environment
             next_obs, reward, done, info = utl.env_step(learner.eval_env, action.squeeze(dim=0))
             obs = next_obs.clone()
-            infiltrations_episode.append(info["newly_infiltrated"])
-            restorations_episode.append(info["restoration_occured"])
+
+            if learner.FLAGS.config_env.env_type == "network-defender":
+                infiltrations_episode.append(info["newly_infiltrated"])
+                restorations_episode.append(info["restoration_occured"])
 
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
         trajectory = np.transpose(trajectory, (2, 0, 1))
         trajs.append(trajectory[:, :, :])
-        infiltrations.append(infiltrations_episode)
-        restorations.append(restorations_episode)
 
-    return trajs, infiltrations, restorations
+        if learner.FLAGS.config_env.env_type == "network-defender":
+            infiltrations.append(infiltrations_episode)
+            restorations.append(restorations_episode)
+
+    return trajs #, infiltrations, restorations
 
 
 def model_wrapper(obs_batch):
@@ -135,7 +139,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     learner.agent.eval()  # Set the agent to evaluation mode
 
     # Generate trajectories
-    trajectories = generate_trajs(learner, num_trajs=num_trajs+1)
+    trajectories = generate_trajs(learner, num_trajs=num_trajs)
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
@@ -145,11 +149,14 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
         plot_features = {f'{f}': f'Feature {f}' for f in range(trajectories[0].shape[2])}
 
     #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
-    avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
+    #avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
+    stacked = np.concatenate(trajectories, axis=0)
+    reshaped = stacked.reshape(-1, stacked.shape[-1])
+    avg_data = pd.DataFrame(reshaped)
 
     avg_data.columns = avg_data.columns.astype(str)
     avg_event = calc_avg_event(data=avg_data,
-                               numerical_feats=model_features, categorical_feats=[]).astype(int)
+                               numerical_feats=model_features, categorical_feats=[]).astype(float)
     # Prepare TimeSHAP input dictionaries
     pruning_dict = {'tol': 0.001}
     event_dict = {'rs': 42, 'nsamples': 100}
@@ -450,8 +457,6 @@ def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=No
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
-    import numpy as np
-    import matplotlib.pyplot as plt
 
 def plot_infiltration_timing(infiltrations, save_path="infiltration_timing_plot.png"):
     """
@@ -588,14 +593,14 @@ def plot_restoration_occured(restorations):
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/lstm/seed-1')
-    #explain(learner, num_trajs=5, last_k=50, top_k=5, model="mlp", tag="new_env")
+    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
+    explain(learner, num_trajs=3, last_k=50, top_k=15, model="test", tag="float")
 
-    trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
+    #trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
     #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
     #plot_infiltration_timing(infiltrations)
     #plot_variance_timesteps(trajs)
-    plot_restoration_occured(restorations)
+    #plot_restoration_occured(restorations)
 
     #plot_event_multi(load_path='explainability/mini-cage_lstm_test_events_last50_traj2.npy', last_k=50)
     #plot_feature_multi(load_path='explainability/network-defender_lru_final_features_top10_traj100.npz', top_k=15)
