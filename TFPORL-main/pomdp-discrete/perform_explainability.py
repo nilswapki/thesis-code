@@ -593,8 +593,8 @@ def plot_restoration_occured(restorations):
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
-    explain(learner, num_trajs=3, last_k=50, top_k=15, model="test", tag="float")
+    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/mamba/seed-1')
+    explain(learner, num_trajs=100, last_k=50, top_k=15, model="mamba", tag="final-avg")
 
     #trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
     #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
