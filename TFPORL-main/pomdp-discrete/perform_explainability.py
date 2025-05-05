@@ -150,13 +150,20 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
 
     #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
     #avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
-    stacked = np.concatenate(trajectories, axis=0)
-    reshaped = stacked.reshape(-1, stacked.shape[-1])
-    avg_data = pd.DataFrame(reshaped)
 
-    avg_data.columns = avg_data.columns.astype(str)
-    avg_event = calc_avg_event(data=avg_data,
-                               numerical_feats=model_features, categorical_feats=[]).astype(float)
+    all_ones = True
+    if not all_ones:
+        stacked = np.concatenate(trajectories, axis=0)
+        reshaped = stacked.reshape(-1, stacked.shape[-1])
+        avg_data = pd.DataFrame(reshaped)
+
+        avg_data.columns = avg_data.columns.astype(str)
+        avg_event = calc_avg_event(data=avg_data,
+                                   numerical_feats=model_features, categorical_feats=[]).astype(float)
+    else:
+        avg_event = pd.DataFrame(np.ones((1, 78)))
+        avg_event.columns = avg_event.columns.astype(str)
+
     # Prepare TimeSHAP input dictionaries
     pruning_dict = {'tol': 0.001}
     event_dict = {'rs': 42, 'nsamples': 100}
@@ -321,9 +328,6 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
     events = np.array(events)
     events = events[:, -last_k:]  # keep all trajs, last k timesteps
 
-    mean_vals = np.mean(events, axis=0)
-
-
     # Scaling factor to shift event 0 mean to 0.5
     #scale = 0.5 / np.max(mean_vals) if np.max(mean_vals) != 0 else 1.0
     #events = events * scale
@@ -356,6 +360,7 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
             label='Shapley Value' if i == 0 else None
         )
 
+    mean_vals = np.mean(events, axis=0)
     # Plot mean Shapley values
     plt.scatter(
         x_labels, mean_vals,
@@ -593,8 +598,8 @@ def plot_restoration_occured(restorations):
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/network-defender/final/mamba/seed-1')
-    explain(learner, num_trajs=100, last_k=50, top_k=15, model="mamba", tag="final-avg")
+    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
+    explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test_ones")
 
     #trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
     #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
@@ -602,6 +607,6 @@ if __name__ == "__main__":
     #plot_variance_timesteps(trajs)
     #plot_restoration_occured(restorations)
 
-    #plot_event_multi(load_path='explainability/mini-cage_lstm_test_events_last50_traj2.npy', last_k=50)
+    #plot_event_multi(load_path='explainability/network-defender_mlp_final-avg_events_last50_traj100.npy', last_k=50)
     #plot_feature_multi(load_path='explainability/network-defender_lru_final_features_top10_traj100.npz', top_k=15)
 
