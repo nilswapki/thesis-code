@@ -142,7 +142,8 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     trajectories = generate_trajs(learner, num_trajs=num_trajs)
 
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
-    # The plotting dictionary should map features to themselves if there are no custom labels
+
+    # Map model features to strings for plotting
     if learner.FLAGS.config_env.env_type == "mini-cage":
         plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
     else:
@@ -189,7 +190,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
             baseline=avg_event
         )
 
-        # Initialize arrays with zeros (or np.nan if you prefer)
+        # Initialize arrays with zeros
         event_array = np.zeros(num_events)
         feature_array = np.zeros(num_features)
 
@@ -219,7 +220,6 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
             label = row["Feature"]
             if label == "Pruned Features" or label == "Pruned Events":
                 idx = -1
-                #array_idx = num_events - 1  # last column
             else:
                 idx = int(label)
 
@@ -231,7 +231,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
         events.append(event_array)
         features.append(feature_array)
 
-    # Convert to np arrays for easy slicing/plotting
+    # Convert to np arrays for slicing/plotting
     events = np.array(events)  # shape: (num_trajs, num_events)
     features = np.array(features)  # shape: (num_trajs, num_features)
 
@@ -239,7 +239,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     events_save_path = f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.npy"
     np.save(events_save_path, events)
 
-    # Save features_top
+    # Save features
     features_save_path = f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.npz"
     np.savez(features_save_path,
              features=features,
@@ -598,8 +598,8 @@ def plot_restoration_occured(restorations):
 
 
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
-    explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test_ones")
+    #learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
+    #explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test_ones")
 
     #trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
     #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
@@ -607,6 +607,6 @@ if __name__ == "__main__":
     #plot_variance_timesteps(trajs)
     #plot_restoration_occured(restorations)
 
-    #plot_event_multi(load_path='explainability/network-defender_mlp_final-avg_events_last50_traj100.npy', last_k=50)
+    plot_event_multi(load_path='explainability/network-defender_mamba_final-avg_events_last50_traj100.npy', last_k=100)
     #plot_feature_multi(load_path='explainability/network-defender_lru_final_features_top10_traj100.npz', top_k=15)
 
