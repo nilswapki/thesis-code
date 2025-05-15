@@ -3,6 +3,7 @@ from policies.learner import Learner
 import numpy as np
 import os
 import re
+import time
 
 
 def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
@@ -39,15 +40,20 @@ def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
     print(f"Results saved to {file_path}")
     print('\n')
 
-    return returns_per_episode
+    return returns_per_episode, infos
 
 
 if __name__ == "__main__":
-    dir = 'logs/mini-cage/100/mamba/2025-03-24-11:38:38'
-    episodes = 200
+    dir = 'logs_results/network-defender/final/mlp'
+
+    episodes = 5
     all_rewards = []
+    all_infiltrations = []
+    all_restorations = []
+    all_times = []
 
     agent = None
+
 
     # Iterate over all subfolders in save_dir
     for subfolder in os.listdir(dir):
@@ -64,8 +70,14 @@ if __name__ == "__main__":
                     model_path = max(file_paths, key=os.path.getctime)
                 else: raise ValueError("No valid agent_*.pt files found in the save directory.")
                 agent.load_model(model_path)
-            rewards = evaluate(learner=agent, save_dir=subfolder_path, episodes=episodes)
+            start_time = time.time()
+            rewards, infos = evaluate(learner=agent, save_dir=subfolder_path, episodes=episodes)
+            end_time = time.time()
             all_rewards.append(rewards)
+            all_times.append(end_time - start_time)
+            if agent.train_env.name == "network-defender":
+                all_restorations.append(infos['restorations_eval'])
+                all_infiltrations.append(infos['infiltrations_eval'])
 
     # save mean and std of mean_rewards in a txt file
     output_lines = []
@@ -73,7 +85,20 @@ if __name__ == "__main__":
     output_lines.append(f"Standard Deviation of mean reward: {np.std([np.mean(rewards) for rewards in all_rewards])}\n")
     output_lines.append(f"Maximum Reward: {np.max([np.max(rewards) for rewards in all_rewards])}\n")
     output_lines.append(f"Minimum Reward: {np.min([np.min(rewards) for rewards in all_rewards])}\n")
-    filename = f"overall_rewards_adversarial_{episodes}_episodes.txt"
+    output_lines.append("\n")
+    if agent.train_env.name == "network-defender":
+        output_lines.append(f"Mean Infiltrations: {np.mean(all_infiltrations)}\n")
+        output_lines.append(f"Standard Deviation of Infiltrations: {np.std(all_infiltrations)}\n")
+        output_lines.append(f"Maximum Infiltrations: {np.max(all_infiltrations)}\n")
+        output_lines.append(f"Minimum Infiltrations: {np.min(all_infiltrations)}\n")
+        output_lines.append("\n")
+        output_lines.append(f"Mean Restorations: {np.mean(all_restorations)}\n")
+        output_lines.append(f"Standard Deviation of Restorations: {np.std(all_restorations)}\n")
+        output_lines.append(f"Maximum Restorations: {np.max(all_restorations)}\n")
+        output_lines.append(f"Minimum Restorations: {np.min(all_restorations)}\n")
+        output_lines.append("\n")
+    output_lines.append(f"Time taken for 100 eval episodes: {np.round(np.mean(all_times)/episodes*100, 2)} seconds\n")
+    filename = f"overall_rewards_{episodes}_episodes.txt"
     file_path = os.path.join(dir, filename)
     with open(file_path, 'w') as file:
         file.writelines(output_lines)

@@ -582,7 +582,7 @@ def plot_restoration_occured(restorations):
 
     # Set custom x-ticks
     ax.set_xticks(np.arange(0, 50))  # 50 bars
-
+    ax.set_xticklabels([str(-i) for i in range(49, -1, -1)])  # From -49 to 0
 
     # Axis labels
     ax.set_xlabel("Timesteps (relative to end)", fontsize=12)
@@ -596,9 +596,10 @@ def plot_restoration_occured(restorations):
     plt.tight_layout()
     plt.show()
 
+
 if __name__ == "__main__":
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/mlp/seed-1')
-    explain(learner, num_trajs=100, last_k=50, top_k=15, model="mlp", tag="final_ones")
+    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
+    explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test_ones")
 
     #trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
     #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
