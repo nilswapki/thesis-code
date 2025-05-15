@@ -43,7 +43,7 @@ def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
 
 
 if __name__ == "__main__":
-    dir = 'logs_results/mini-cage/final/standard/lstm'
+    dir = 'logs/mini-cage/100/mamba/2025-03-24-11:38:38'
     episodes = 200
     all_rewards = []
 

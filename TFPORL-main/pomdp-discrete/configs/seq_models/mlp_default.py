@@ -6,7 +6,7 @@ def get_config():
     config = ConfigDict()
     config.name_fn = name_fn
 
-    config.is_markov = False
+    config.is_markov = True
     config.is_attn = False
 
     config.sampled_seq_len = 2
