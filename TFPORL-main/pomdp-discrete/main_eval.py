@@ -84,7 +84,7 @@ def load_flags_from_pkl(pkl_path):
             elif key == "start_training":
                 FLAGS.start_training = value
             elif key == "seed":
-                FLAGS.seed = value
+                FLAGS.seed = 153 #value
             elif key == "train_episodes":
                 FLAGS.train_episodes = value
             elif key == "updates_per_step":
@@ -110,6 +110,7 @@ def initialize_learner_with_flags(save_dir=None):
 
     gpu_mode_bool = ((torch.cuda.is_available() or torch.backends.mps.is_available())
                 and not FLAGS.config_seq.model.seq_model_config.name == 'mlpx')
+    gpu_mode_bool = False
     set_gpu_mode(mode=gpu_mode_bool)
 
     # Load the environment and the Learner instance
@@ -119,7 +120,7 @@ def initialize_learner_with_flags(save_dir=None):
 
     config_env, env_name = config_env.create_fn(config_env)
     #env = make_env(env_name, FLAGS.seed)
-    eval_env = make_env(env_name, FLAGS.seed + 42, eval=True)
+    eval_env = make_env(env_name, FLAGS.seed + 43, eval=True)
     system.reproduce(FLAGS.seed)
 
     # Create the Learner instance and load the trained model
