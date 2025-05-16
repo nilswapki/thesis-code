@@ -133,7 +133,7 @@ class NetworkDefenderEnv(gym.Env):
         self.sensor_reading = np.zeros(self.n_nodes, dtype=np.float32)
 
         # Place attacker at a random node.
-        self.initial_attacker_node = 1  #np.random.randint(0, self.n_nodes)
+        self.initial_attacker_node = np.random.randint(0, self.n_nodes)
 
         self.infiltrated[self.initial_attacker_node] = 1
         self.passively_infiltrated = []

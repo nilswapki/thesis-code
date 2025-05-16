@@ -1,0 +1,8 @@
+Evaluation Results - 200 Episodes
+Mean Return: 32.98449988011271
+Standard Deviation of Return: 7.009551295852994
+Maximum Return: 51.499999191612005
+Minimum Return: 15.099999867379665
+Info Keywords:
+- infiltrations_eval: 179.89
+- restorations_eval: 11.31

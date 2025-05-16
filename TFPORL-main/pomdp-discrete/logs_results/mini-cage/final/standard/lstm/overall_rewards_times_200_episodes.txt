@@ -1,0 +1,6 @@
+Mean reward over all agents: -8.948500009834765
+Standard Deviation of mean reward: 2.8322941267035997
+Maximum Reward: 0.0
+Minimum Reward: -79.59999887645245
+
+Time taken for 100 eval episodes: 26.99 seconds

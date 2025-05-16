@@ -1,0 +1,16 @@
+Mean reward over all agents: 31.590249855116006
+Standard Deviation of mean reward: 1.060906793647254
+Maximum Reward: 51.94999970495701
+Minimum Reward: 6.949999764561653
+
+Mean Infiltrations: 186.87500000000003
+Standard Deviation of Infiltrations: 2.8909479414199146
+Maximum Infiltrations: 190.96
+Minimum Infiltrations: 182.575
+
+Mean Restorations: 9.600999999999999
+Standard Deviation of Restorations: 1.3901740898175308
+Maximum Restorations: 11.355
+Minimum Restorations: 7.325
+
+Time taken for 100 eval episodes: 9.37 seconds

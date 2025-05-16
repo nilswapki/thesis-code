@@ -24,7 +24,7 @@ class SimplifiedCAGEWrapper(gym.Env):
         if red_agents is not None:
             self.red_agents = red_agents
         else:
-            self.red_agents = [B_line_minimal()]
+            self.red_agents = [B_line_minimal(), Meander_minimal(), Blue_sleep()]
         self.current_red_agent_index = 0
 
         # Define the action space for BLUE agent
@@ -34,7 +34,7 @@ class SimplifiedCAGEWrapper(gym.Env):
         # 2n scan activity, 2n host safety, n prior scans, n decoy info --> 6n
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(self.env.num_nodes*6,), dtype=np.float32)
 
-        self.adversarial = True
+        self.adversarial = False
         if self.adversarial:
             self.learner_red = initialize_learner_with_flags(save_dir='logs_results/mini-cage-red/attacker_30000/seed-5')
             self.action_red, self.reward_red, self.internal_state_red = self.learner_red.agent.get_initial_info(

@@ -18,7 +18,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/network-defender.py",  # Change env here!
+    "configs/envs/mini-cage.py",  # Change env here!
     "File path to the environment configuration.",
     lock_config=False,
 )
