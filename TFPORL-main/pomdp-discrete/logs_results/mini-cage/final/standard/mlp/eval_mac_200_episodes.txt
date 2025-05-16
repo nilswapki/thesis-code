@@ -3,4 +3,4 @@ Standard Deviation of mean reward: 18.628003046203318
 Maximum Reward: 0.0
 Minimum Reward: -882.2999877035618
 
-Time taken for 100 eval episodes: 23.97 seconds
+Time taken for 100 eval episodes: 24.57 seconds
