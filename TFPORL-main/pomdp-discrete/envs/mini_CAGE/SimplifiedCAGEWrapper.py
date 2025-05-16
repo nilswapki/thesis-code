@@ -105,6 +105,7 @@ class SimplifiedCAGEWrapper(gym.Env):
         pass
 
     def seed(self, seed=None):
+        np.random.seed(seed)
         # Set the seed using the reset method
         self.reset(seed=seed)
         if hasattr(self.action_space, 'seed'):

@@ -84,7 +84,7 @@ def load_flags_from_pkl(pkl_path):
             elif key == "start_training":
                 FLAGS.start_training = value
             elif key == "seed":
-                FLAGS.seed = value
+                FLAGS.seed = 155 #value
             elif key == "train_episodes":
                 FLAGS.train_episodes = value
             elif key == "updates_per_step":
