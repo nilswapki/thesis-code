@@ -44,9 +44,9 @@ def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
 
 
 if __name__ == "__main__":
-    dir = 'logs_results/mini-cage/final/standard/lru'
+    dir = 'logs_results/mini-cage/final/standard/lstm'
 
-    episodes = 200
+    episodes = 2
     all_rewards = []
     all_infiltrations = []
     all_restorations = []
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         output_lines.append("\n")
     output_lines.append(f"Time taken for 100 eval episodes: {np.round(np.mean(all_times)/episodes*100, 2)} seconds\n")
 
-    filename = f"eval_mac_{episodes}_episodes.txt"
+    filename = f"eval_new_{episodes}_episodes.txt"
     file_path = os.path.join(dir, filename)
     with open(file_path, 'w') as file:
         file.writelines(output_lines)
