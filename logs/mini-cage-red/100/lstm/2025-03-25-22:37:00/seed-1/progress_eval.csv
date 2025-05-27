@@ -1,0 +1,3 @@
+env_steps,return_eval,invalid_actions_blue_eval,invalid_actions_red_eval,success_eval,length_eval,FPS_eval,time_eval
+1000,0.0,1.0,1.0,0.0,100.0,40.4405,24.7277
+2000,0.0,1.0,1.0,0.0,100.0,42.7562,23.3884

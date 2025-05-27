@@ -1,0 +1,61 @@
+--config_env=env_name: 100
+env_type: network-defender
+eval_episodes: 5
+eval_interval: 100
+extra_edge_prob: 0.2
+n_nodes: 15
+noise_95_interval: 0.25
+noise_mean: 0.4
+recursive: false
+save_interval: 5000
+terminal_fn: !!python/name:configs.envs.terminal_fns.finite_horizon_terminal ''
+
+--config_rl=actor_lr: 0.0001
+algo: dqn
+config_critic:
+  hidden_dims: !!python/tuple
+  - 256
+  - 256
+critic_lr: 0.0001
+discount: 0.95
+end_eps: 0.01
+init_eps: 1.0
+replay_buffer_num_episodes: 10000.0
+replay_buffer_size: 1000000.0
+schedule_end: 0.2
+schedule_steps: 20000.0
+tau: 0.01
+
+--config_seq=clip: true
+is_attn: false
+is_markov: true
+max_norm: 3.0
+model:
+  action_embedder:
+    hidden_size: 0
+    name: mlp
+  observ_embedder:
+    hidden_size: 64
+    name: mlp
+  reward_embedder:
+    hidden_size: 0
+    name: mlp
+  seq_model_config:
+    hidden_size: 64
+    name: mlp
+sampled_seq_len: 1
+use_l2_norm: true
+
+--noshared_encoder
+--nofreeze_critic
+--seeds=1
+--batch_size=64
+--train_episodes=1000
+--updates_per_step=0.5
+--start_training=0
+--nodebug
+--save_dir=logs
+
+--run_name=2025-04-26-23:26:15
+
+--sequential_model=mlp

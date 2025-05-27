@@ -1,0 +1,2 @@
+env_steps,critic_loss,q,critic_grad_norm,critic_seq_grad_norm
+1000,0.547,-0.9313,0.548,1.4154

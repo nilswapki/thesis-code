@@ -1,0 +1,58 @@
+--config_env=env_name: 100
+env_type: minimal-test
+eval_episodes: 5
+eval_interval: 100
+save_interval: 500
+terminal_fn: !!python/name:configs.envs.terminal_fns.finite_horizon_terminal ''
+
+--config_rl=actor_lr: 0.0003
+algo: sacd
+config_actor:
+  hidden_dims: &id001 !!python/tuple
+  - 256
+  - 256
+config_critic:
+  hidden_dims: *id001
+critic_lr: 0.0003
+discount: 0.99
+init_temperature: 1.0
+replay_buffer_num_episodes: 10000.0
+replay_buffer_size: 1000000.0
+target_entropy: null
+tau: 0.005
+temp_lr: 0.0006
+update_temperature: true
+
+--config_seq=clip: false
+is_attn: false
+is_markov: true
+max_norm: 3.0
+model:
+  action_embedder:
+    hidden_size: 0
+    name: mlp
+  observ_embedder:
+    hidden_size: 64
+    name: mlp
+  reward_embedder:
+    hidden_size: 0
+    name: mlp
+  seq_model_config:
+    hidden_size: 64
+    name: mlp
+sampled_seq_len: 1
+use_l2_norm: true
+
+--noshared_encoder
+--nofreeze_critic
+--seeds=42
+--batch_size=64
+--train_episodes=200
+--updates_per_step=0.5
+--start_training=10
+--nodebug
+--save_dir=logs
+
+--run_name=2025-05-04-22:56:22
+
+--sequential_model=mlp

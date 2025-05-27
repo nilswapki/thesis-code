@@ -1,0 +1,2 @@
+env_steps,critic_loss,q1,q2,actor_loss,entropy,coef
+1000,18.9488,1.3949,1.3868,-3.2335,0.2961,1.0566

@@ -1,0 +1,3 @@
+env_steps,return_eval,TimeLimit.truncated,success_eval,length_eval,FPS_eval,time_eval
+10000,76.5936,0.0,0.0,100.0,359.0737,27.8494
+20000,109.8715,0.0,0.0,100.0,360.0496,27.774

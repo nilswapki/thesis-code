@@ -1,3 +1,0 @@
-env_name: HalfCheetah
-max_timestep: 1000
-rtg_target: 12000

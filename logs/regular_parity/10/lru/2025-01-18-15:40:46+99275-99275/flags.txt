@@ -1,0 +1,59 @@
+--config_env=env_name: 10
+env_type: regular_parity
+eval_episodes: 100
+eval_interval: 100
+save_interval: 100
+terminal_fn: !!python/name:configs.envs.terminal_fns.finite_horizon_terminal ''
+
+--config_rl=actor_lr: 0.0003
+algo: dqn
+config_critic:
+  hidden_dims: !!python/tuple
+  - 256
+  - 256
+critic_lr: 0.0003
+discount: 0.99
+end_eps: 0.09090909090909091
+init_eps: 1.0
+replay_buffer_num_episodes: 1000.0
+replay_buffer_size: 1000000.0
+schedule_end: 0.1
+schedule_steps: 1100.0
+tau: 0.005
+
+--config_seq=clip: false
+is_attn: false
+is_markov: false
+max_norm: 1.0
+model:
+  action_embedder:
+    hidden_size: 64
+    name: mlp
+  observ_embedder:
+    hidden_size: 64
+    name: mlp
+  reward_embedder:
+    hidden_size: 0
+    name: mlp
+  seq_model_config:
+    drop: 0.1
+    gating: false
+    hidden_size: 128
+    max_seq_length: 12
+    n_layer: 2
+    name: lru
+sampled_seq_len: 11
+use_dropout: false
+use_l2_norm: false
+
+--noshared_encoder
+--nofreeze_critic
+--seed=42
+--batch_size=64
+--train_episodes=1000
+--updates_per_step=0.25
+--start_training=10
+--nodebug
+--save_dir=logs
+
+--run_name=2025-01-18-15:40:46+99275-99275

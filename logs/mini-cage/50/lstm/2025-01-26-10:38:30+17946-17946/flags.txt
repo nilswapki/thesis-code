@@ -1,0 +1,58 @@
+--config_env=env_name: 50
+env_type: mini-cage
+eval_episodes: 2
+eval_interval: 10
+save_interval: 1000
+terminal_fn: !!python/name:configs.envs.terminal_fns.finite_horizon_terminal ''
+
+--config_rl=actor_lr: 0.0003
+algo: sacd
+config_actor:
+  hidden_dims: &id001 !!python/tuple
+  - 256
+  - 256
+config_critic:
+  hidden_dims: *id001
+critic_lr: 0.0003
+discount: 0.99
+init_temperature: 0.1
+replay_buffer_num_episodes: 1000.0
+replay_buffer_size: 1000000.0
+target_entropy: null
+tau: 0.005
+temp_lr: 0.0003
+update_temperature: false
+
+--config_seq=clip: false
+is_attn: false
+is_markov: false
+max_norm: 1.0
+model:
+  action_embedder:
+    hidden_size: 16
+    name: mlp
+  observ_embedder:
+    hidden_size: 32
+    name: mlp
+  reward_embedder:
+    hidden_size: 0
+    name: mlp
+  seq_model_config:
+    hidden_size: 128
+    n_layer: 1
+    name: lstm
+sampled_seq_len: 51
+use_dropout: false
+use_l2_norm: false
+
+--noshared_encoder
+--nofreeze_critic
+--seed=42
+--batch_size=64
+--train_episodes=30
+--updates_per_step=0.25
+--start_training=10
+--nodebug
+--save_dir=logs
+
+--run_name=2025-01-26-10:38:30+17946-17946

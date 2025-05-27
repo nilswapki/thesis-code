@@ -1,3 +1,0 @@
-env_name: Walker2d
-max_timestep: 1000
-rtg_target: 5000

@@ -1,0 +1,54 @@
+--config_env=env_name: 100
+env_type: mini-cage
+eval_episodes: 2
+eval_interval: 10
+save_interval: 500
+terminal_fn: !!python/name:configs.envs.terminal_fns.finite_horizon_terminal ''
+
+--config_rl=actor_lr: 0.0003
+algo: dqn
+config_critic:
+  hidden_dims: !!python/tuple
+  - 256
+  - 256
+critic_lr: 0.0003
+discount: 0.99
+end_eps: 0.01
+init_eps: 1.0
+replay_buffer_num_episodes: 10000.0
+replay_buffer_size: 1000000.0
+schedule_end: 0.5
+schedule_steps: 25000.0
+tau: 0.005
+
+--config_seq=clip: false
+is_attn: false
+is_markov: false
+max_norm: 1.0
+model:
+  action_embedder:
+    hidden_size: 0
+    name: mlp
+  observ_embedder:
+    hidden_size: 64
+    name: mlp
+  reward_embedder:
+    hidden_size: 0
+    name: mlp
+  seq_model_config:
+    hidden_size: 64
+    name: mlp
+sampled_seq_len: 2
+use_l2_norm: false
+
+--noshared_encoder
+--nofreeze_critic
+--seed=1
+--batch_size=64
+--train_episodes=500
+--updates_per_step=0.5
+--start_training=0
+--nodebug
+--save_dir=logs
+
+--run_name=2025-03-01-12:17:52

@@ -1,0 +1,127 @@
+Aggregated Metrics for network-defender-1000-dqn-mlp-1
+
+Feature: Environment Steps (env_steps)
+  Overall Mean (Avg over Episodes): 49502.2500
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 99450.0000
+  Final Std: 0.0000
+  Max Mean: 99450.0000
+  Min Mean: 0.0000
+  Median Mean: 49500.0000
+
+Feature: Reward Eval (return_eval)
+  Overall Mean (Avg over Episodes): -85.4344
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): -86.5660
+  Final Std: 0.0000
+  Max Mean: -81.5975
+  Min Mean: -90.9000
+  Median Mean: -85.9129
+
+Feature: Unnecessary Restorations (restorations)
+  Overall Mean (Avg over Episodes): 71.1077
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 72.3000
+  Final Std: 0.0000
+  Max Mean: 78.3000
+  Min Mean: 64.1000
+  Median Mean: 71.0000
+
+Feature: Episode Length Eval (length_eval)
+  Overall Mean (Avg over Episodes): 100.0000
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 100.0000
+  Final Std: 0.0000
+  Max Mean: 100.0000
+  Min Mean: 100.0000
+  Median Mean: 100.0000
+
+Feature: Training Time (time)
+  Overall Mean (Avg over Episodes): 0.0461
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 0.0458
+  Final Std: 0.0000
+  Max Mean: 0.0503
+  Min Mean: 0.0141
+  Median Mean: 0.0461
+
+Feature: Episode Length (length)
+  Overall Mean (Avg over Episodes): 100.0000
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 100.0000
+  Final Std: 0.0000
+  Max Mean: 100.0000
+  Min Mean: 100.0000
+  Median Mean: 100.0000
+
+Feature: Unnecessary Restorations Eval (restorations_eval)
+  Overall Mean (Avg over Episodes): 73.0104
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 73.4600
+  Final Std: 0.0000
+  Max Mean: 75.1000
+  Min Mean: 71.3500
+  Median Mean: 73.2300
+
+Feature: Critic Loss (critic_loss)
+  Overall Mean (Avg over Episodes): 1.1969
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 1.1851
+  Final Std: 0.0000
+  Max Mean: 1.7196
+  Min Mean: 1.0618
+  Median Mean: 1.1989
+
+Feature: Frames per Second Eval (FPS_eval)
+  Overall Mean (Avg over Episodes): 1161.7092
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 1169.5059
+  Final Std: 0.0000
+  Max Mean: 1170.7440
+  Min Mean: 1145.7124
+  Median Mean: 1163.8575
+
+Feature: Frames per Second (FPS)
+  Overall Mean (Avg over Episodes): 2128.9963
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 2185.0462
+  Final Std: 0.0000
+  Max Mean: 2232.0618
+  Min Mean: 0.0000
+  Median Mean: 2154.4115
+
+Feature: Infiltrations (infiltrations)
+  Overall Mean (Avg over Episodes): 1113.7686
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 1101.6000
+  Final Std: 0.0000
+  Max Mean: 1185.0000
+  Min Mean: 1035.4000
+  Median Mean: 1115.3000
+
+Feature: Infiltrations Eval (infiltrations_eval)
+  Overall Mean (Avg over Episodes): 1112.1498
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 1111.4000
+  Final Std: 0.0000
+  Max Mean: 1121.7500
+  Min Mean: 1103.0000
+  Median Mean: 1111.9000
+
+Feature: Training Time Eval (time_eval)
+  Overall Mean (Avg over Episodes): 0.0861
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): 0.0855
+  Final Std: 0.0000
+  Max Mean: 0.0873
+  Min Mean: 0.0855
+  Median Mean: 0.0860
+
+Feature: Reward (return)
+  Overall Mean (Avg over Episodes): -85.9535
+  Overall Std (Avg over Episodes): nan
+  Final Mean (Last Episode): -88.5600
+  Final Std: 0.0000
+  Max Mean: -69.4900
+  Min Mean: -108.5000
+  Median Mean: -85.5800
