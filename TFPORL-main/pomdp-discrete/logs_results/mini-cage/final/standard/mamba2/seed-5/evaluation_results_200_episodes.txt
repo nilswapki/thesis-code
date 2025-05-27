@@ -1,0 +1,8 @@
+Evaluation Results - 200 Episodes
+Mean Return: -26.720999874286353
+Standard Deviation of Return: 40.28320375568651
+Maximum Return: 0.0
+Minimum Return: -126.69999457150698
+Info Keywords:
+- invalid_actions_blue_eval: 0.002250000000000002
+- invalid_actions_red_eval: 0.8941999999999993

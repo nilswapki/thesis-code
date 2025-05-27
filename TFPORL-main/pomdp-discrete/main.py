@@ -36,7 +36,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file(
     "config_env",
-    "configs/envs/mini-cage.py",
+    "configs/envs/network-defender.py",
     "File path to the environment configuration.",
     lock_config=False,
 )
@@ -66,9 +66,9 @@ flags.DEFINE_boolean(
 # training settings
 flags.DEFINE_list("seeds", [1], "Random seed.")
 flags.DEFINE_integer("batch_size", 64, "Mini batch size.")
-flags.DEFINE_integer("train_episodes", 10000, "Number of episodes during training.")
+flags.DEFINE_integer("train_episodes", 100, "Number of episodes during training.")
 flags.DEFINE_float("updates_per_step", 0.5, "Gradient updates per step.")
-flags.DEFINE_integer("start_training", 10, "Number of episodes to start training.")
+flags.DEFINE_integer("start_training", 0, "Number of episodes to start training.")
 
 # logging settings
 flags.DEFINE_boolean("debug", False, "debug mode")
