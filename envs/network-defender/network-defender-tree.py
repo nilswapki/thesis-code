@@ -5,18 +5,17 @@ from gym import spaces
 import numpy as np
 import networkx as nx
 import random
-import math
-from collections import deque
 import matplotlib.pyplot as plt
 import pickle
 
 
 class NetworkDefenderEnvTree(gym.Env):
     """
-    A simplified, sensor-based network defender environment.
+    This environment is an alternative version of the Network Defender environment, featuring a tree structure.
+    The tree is generated with a specified number of leaves and depth, creating a balanced tree structure.
+    This environment was supposed to better focus in the recursive option implemented in the original environment.
 
-    Environment details:
-    - The environment consists of a flexible number of nodes with a random, connected topology.
+    This environment was not used in the final experiments, but is kept for future reference and potential use.
     """
 
     metadata = {'render.modes': ['human']}

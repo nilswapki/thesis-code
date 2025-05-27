@@ -5,8 +5,6 @@ from gym import spaces
 import numpy as np
 import networkx as nx
 import random
-import math
-from collections import deque
 import matplotlib.pyplot as plt
 import pickle
 
@@ -14,9 +12,16 @@ import pickle
 class NetworkDefenderEnv(gym.Env):
     """
     A simplified, sensor-based network defender environment.
+    The environment consists of a flexible number of nodes with a random, connected topology.
 
-    Environment details:
-    - The environment consists of a flexible number of nodes with a random, connected topology.
+    Args:
+    n_nodes (int): Number of nodes in the network.
+    extra_edge_prob (float): Probability of adding extra edges to the network graph to increase connectivity.
+    episode_length (int): Maximum number of timesteps per episode.
+    noise_mean (float): Mean of the sensor noise added to observations.
+    noise_95_interval (float): 95% confidence interval width for the sensor noise; used to compute std.
+    seed (int, optional): Random seed for reproducibility.
+    recursive (bool): If True, enables passive infiltration logic for isolated nodes.
     """
 
     metadata = {'render.modes': ['human']}
@@ -53,7 +58,7 @@ class NetworkDefenderEnv(gym.Env):
             self.graph = self._generate_connected_graph(self.n_nodes, self.extra_edge_prob)
         self.connection_matrix, self.neighbors = self._create_adj_and_neighbors(self.graph)
 
-        ### Global node statuses:
+        # Global node statuses:
         # infiltration: flag for each node, >=1 if infiltrated (by attacker), 0 otherwise.
         self.infiltrated = np.zeros(self.n_nodes, dtype=np.int32)
         self.passively_infiltrated = []
@@ -61,13 +66,10 @@ class NetworkDefenderEnv(gym.Env):
         # Sensor readings
         self.sensor_reading = np.zeros(self.n_nodes, dtype=np.float32)
 
-
-        # Define observation space:
+        # Observation space: Sensor readings for each node, normalized to [0, 1].
         self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(self.n_nodes,), dtype=np.float32)
 
-        # Define action space:
-        # Fixed-size discrete action space.
-        # Actions: Do nothing or Restore.
+        # Actions: Do nothing (0) or Restore (1 to n+1)
         self.action_space = spaces.Discrete(self.n_nodes+1)
 
         self.timestep = 0
@@ -80,31 +82,57 @@ class NetworkDefenderEnv(gym.Env):
         np.random.seed(seed)
 
     def _generate_connected_graph(self, n_nodes, extra_edge_prob, save_graph=True):
-        # Use NetworkX to generate a spanning tree, then add extra edges.
+
+        """
+        Generates a connected undirected graph with a specified number of nodes and additional random edges.
+
+        Args:
+            n_nodes (int): Number of nodes in the graph.
+            extra_edge_prob (float): Probability of adding an extra edge between any two non-connected nodes.
+            save_graph (bool): Whether to save the generated graph as a `.gpickle` file and as a `.png` image.
+
+        Returns:
+            networkx.Graph: A connected undirected graph representing the network topology.
+        """
+
+        # Use NetworkX to generate a spanning tree, then add extra edges
         tree = nx.from_prufer_sequence(np.random.randint(0, n_nodes, size=n_nodes - 2))
         G = nx.Graph(tree)
         for i in range(n_nodes):
             for j in range(i + 1, n_nodes):
                 if not G.has_edge(i, j) and np.random.rand() < extra_edge_prob:
                     G.add_edge(i, j)
-        # Ensure connectivity.
+
+        # Ensure connectivity
         if not nx.is_connected(G):
             G = nx.connected_component_subgraphs(G).__next__()
-        x = os.getcwd()
-        if save_graph:
+        if save_graph:  # Save the graph to a file
             with open(f"envs/network-defender/graphs/graph-nodes{n_nodes}-edges{extra_edge_prob}.gpickle", "wb") as f:
                 pickle.dump(G, f)
+            # Save the graph as an image
             self.save_graph_image(graph=G, path=f"envs/network-defender/graphs/graph-nodes{n_nodes}-edges{extra_edge_prob}.png")
-        # Save the graph as an image.
         return G
 
     def _create_adj_and_neighbors(self, G):
-        # Create adjacency matrix and neighbor list.
-        adj = nx.adjacency_matrix(G).todense()
+        """
+        Constructs the adjacency matrix and neighbor list from a given network graph.
+
+        Args:
+            G (networkx.Graph): The input graph representing the network topology.
+
+        Returns:
+            tuple:
+                - adj (np.ndarray): A dense adjacency matrix of shape (n_nodes, n_nodes),
+                  where adj[i][j] = 1 indicates an edge between nodes i and j.
+                - neighbors (List[List[int]]): A list of length n_nodes, where each entry contains
+                  the indices of neighboring nodes for that node.
+        """
+
+        adj = nx.adjacency_matrix(G).todense()  # dense matrix representation
         adj = np.array(adj, dtype=np.int32)
         neighbors = []
         for i in range(self.n_nodes):
-            neigh = np.where(adj[i] == 1)[0].tolist()
+            neigh = np.where(adj[i] == 1)[0].tolist()  # find neighbors of node i
             neighbors.append(neigh)
         return adj, neighbors
 
@@ -174,6 +202,12 @@ class NetworkDefenderEnv(gym.Env):
                 reward -= 1
                 restore_unnecessary = 1
 
+            """
+            The recursive option was implemented to allow for more realistic scenarios where the attacker
+            can only impact nodes that are directly connected to the initial foothold via other infiltrated nodes.
+            
+            This option was not used in this thesis, but is still available for future use.
+            """
             if self.recursive:
                 # check for every infiltrated node if there still is a path to the initial foothold, if not, restore it
                 for node in range(self.n_nodes):
@@ -224,7 +258,6 @@ class NetworkDefenderEnv(gym.Env):
                         self.infiltrated[self.last_infiltrated] = 1
                         newly_infiltrated.append(self.last_infiltrated)
 
-
             if self.recursive:
                 # for every passively infiltrated node, check if it can be reached by the attacker
                 # via the infiltrated nodes and passively infiltrated nodes
@@ -235,7 +268,6 @@ class NetworkDefenderEnv(gym.Env):
 
         # reward is the negative sum of all infiltrated nodes --> confuses the agent
         reward -= (np.sum(self.infiltrated > 0) - 1) * 0.05  # dont give negative reward for initial foothold
-
 
         # End episode if maximum timesteps reached.
         if self.timestep >= self.episode_length:
@@ -273,9 +305,6 @@ class NetworkDefenderEnv(gym.Env):
 if __name__ == "__main__":
     env = NetworkDefenderEnv(n_nodes=15, extra_edge_prob=0.2, episode_length=100, seed=36,
                              noise_mean=0.2, noise_95_interval=0.2, recursive=True)
-
-    #nx.draw(env.graph, with_labels=True, node_color='lightblue', font_weight='bold', node_size=500, font_size=12)
-    #plt.savefig('graph')
 
     obs, _ = env.reset()
     env.render()

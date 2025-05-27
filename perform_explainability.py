@@ -1,29 +1,35 @@
 from helper_eval import initialize_learner_with_flags
 from policies.learner import Learner
 
-import shap
-import timeshap
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
-from timeshap.explainer.local_methods import local_report, calc_local_report
-from timeshap.explainer.global_methods import calc_global_explanations
+from timeshap.explainer.local_methods import calc_local_report
 from timeshap.utils import calc_avg_event
 import matplotlib
 from matplotlib import pyplot as plt
 import torch
 import torchkit.pytorch_utils as ptu
 import utils.helpers as utl
-import altair_saver
 import re
-from sklearn.preprocessing import minmax_scale
 
+# this can be changed if needed
 if not torch.cuda.is_available():
     matplotlib.use('TkAgg')  # Use the standard interactive backend
 
 
 def generate_trajs(learner: Learner, num_trajs: int):
+
+    """
+    Generates trajectories by simulating the agent's behavior in the evaluation environment.
+
+    Args:
+        learner (Learner): The learner object containing the agent and environment configurations.
+        num_trajs (int): The number of trajectories to generate.
+
+    Returns:
+        trajs (list): A list of trajectories, where each trajectory is a numpy array of observations.
+    """
+
     # Evaluate the model
     learner.agent.eval()  # Set the agent to evaluation mode
     trajs = []
@@ -32,22 +38,26 @@ def generate_trajs(learner: Learner, num_trajs: int):
 
     for i in range(num_trajs):
         print(f"Generating trajectory {i + 1}/{num_trajs}")
-        # Reset the environment
+        # Get the initial action, reward, and internal state from the agent
         action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
+        # Reset the environment
         obs, info = learner.eval_env.reset()
+
+        # Convert observation to tensor and ensure correct shape
         if obs.shape[0] == 1:
             obs = obs.reshape(-1, 1)
         obs = ptu.from_numpy(obs)
 
         trajectory = []  # Store trajectory for TimeSHAP in numpy array
         infiltrations_episode = []  # Store infiltrations for this episode
-        restorations_episode = []
+        restorations_episode = []  # Store restorations for this episode
 
         done = False
         while not done:
             # Store the current observation for TimeSHAP
             trajectory.append(obs.clone().detach())
 
+            # Convert tensors to the appropriate device
             if torch.cuda.is_available():
                 device = 'cuda:0'
             else:
@@ -56,7 +66,7 @@ def generate_trajs(learner: Learner, num_trajs: int):
             reward = reward.to(device)
             obs = obs.to(device)
 
-            # Select action
+            # Get the next action from the agent
             action, internal_state = learner.agent.act(
                 prev_internal_state=internal_state,
                 prev_action=action,
@@ -64,8 +74,6 @@ def generate_trajs(learner: Learner, num_trajs: int):
                 obs=obs,
                 deterministic=True,
             )
-
-            action_index = torch.argmax(action, dim=-1).item()
 
             # Step the environment
             next_obs, reward, done, info = utl.env_step(learner.eval_env, action.squeeze(dim=0))
@@ -75,23 +83,40 @@ def generate_trajs(learner: Learner, num_trajs: int):
                 infiltrations_episode.append(info["newly_infiltrated"])
                 restorations_episode.append(info["restoration_occured"])
 
+        # Store the last observation
         trajectory = np.stack([obs.cpu().numpy() for obs in trajectory])
+        # Ensure trajectory is in the correct shape (T, B, F)
         trajectory = np.transpose(trajectory, (2, 0, 1))
+        # Append the trajectory to the list
         trajs.append(trajectory[:, :, :])
 
         if learner.FLAGS.config_env.env_type == "network-defender":
             infiltrations.append(infiltrations_episode)
             restorations.append(restorations_episode)
 
-    return trajs #, infiltrations, restorations
+        return trajs
 
 
-def model_wrapper(obs_batch):
+def model_wrapper(obs_batch: np.ndarray):
+
+    """
+    Wraps the model's inference logic for use in explainability (e.g., TimeSHAP).
+
+    Args:
+        obs_batch (np.ndarray): A NumPy array of shape (batch_size, sequence_length, num_features),
+            containing the input observation sequences for multiple samples.
+
+    Returns:
+        np.ndarray: A NumPy array of shape (batch_size, 1), containing the final predicted action
+        index for each sample in the batch.
+    """
+
     with torch.no_grad():
         actions = []
+        # Get the initial action, reward, and internal state from the agent
         action, reward, internal_state = learner.agent.get_initial_info(learner.config_seq.sampled_seq_len)
 
-        # Convert obs_batch to tensor (ensure it's the correct shape)
+        # Convert obs_batch to tensor (ensure it has the correct shape)
         obs_batch = torch.tensor(obs_batch, dtype=torch.float32)
 
         # Iterate over batch dimension (#samples)
@@ -108,11 +133,11 @@ def model_wrapper(obs_batch):
                     device = 'cuda:0'
                 else:
                     device = 'mps:0'
-
                 action = action.to(device)
                 reward = reward.to(device)
                 obs_adjusted = obs_adjusted.to(device)
 
+                # Get the next action from the agent
                 action, internal_state = learner.agent.act(
                     prev_internal_state=internal_state,  # shape (1,1,1,64)
                     prev_action=action,  # shape (1,1,1,56)
@@ -134,33 +159,53 @@ def model_wrapper(obs_batch):
         return np.array(actions).reshape(-1, 1)  # Ensure shape (#samples, 1)
 
 
-def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int = 20, model="", tag=""):
+def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int = 20, model="", tag="", all_ones=False):
+
+    """
+    Generates and saves TimeSHAP-based explainability visualizations for a given RL agent.
+
+    This function evaluates the agent in the provided learner setup, extracts a number of trajectories,
+    and computes Shapley values for both temporal events (timesteps) and input features using TimeSHAP.
+    It then saves and visualizes these attributions to help understand which timesteps and features were
+    most influential in the agent's decision-making.
+
+    Args:
+        learner (Learner): The learner object containing the agent and environment configurations.
+        num_trajs (int, optional): Number of trajectories to generate for explainability. Defaults to 3.
+        last_k (int, optional): Number of last events to consider for event-wise Shapley value plots. Defaults to 30.
+        top_k (int, optional): Number of top features to consider for feature-wise Shapley value plots. Defaults to 20.
+        model (str, optional): Model name used for saving explainability results. Defaults to an empty string.
+        tag (str, optional): Tag to differentiate explainability runs, used in output file names. Defaults to an empty string.
+
+    Returns:
+        None
+    """
+
     # Evaluate the model
     learner.agent.eval()  # Set the agent to evaluation mode
 
     # Generate trajectories
     trajectories = generate_trajs(learner, num_trajs=num_trajs)
 
+    # Generate model features
     model_features = [f'{i}' for i in range(trajectories[0].shape[2])]
     # The plotting dictionary should map features to themselves if there are no custom labels
     if learner.FLAGS.config_env.env_type == "mini-cage":
+        # Use the environment's feature descriptions
         plot_features = {f'{f}': learner.eval_env.describe_feature(feature_index=f) for f in range(trajectories[0].shape[2])}  # learner.eval_env.describe_feature(feature_index=f)
     else:
         plot_features = {f'{f}': f'Feature {f}' for f in range(trajectories[0].shape[2])}
 
-    #avg_data = pd.DataFrame(np.concatenate([traj.squeeze(0) for traj in trajectories], axis=0))
-    #avg_data = pd.DataFrame(trajectories.pop(0).squeeze(0))
-
-    all_ones = True
-    if not all_ones:
+    if not all_ones:  # if we want to calculate the average event
+        # Prepare the average event data
         stacked = np.concatenate(trajectories, axis=0)
         reshaped = stacked.reshape(-1, stacked.shape[-1])
         avg_data = pd.DataFrame(reshaped)
-
         avg_data.columns = avg_data.columns.astype(str)
+        # Calculate the average event
         avg_event = calc_avg_event(data=avg_data,
                                    numerical_feats=model_features, categorical_feats=[]).astype(float)
-    else:
+    else:  # if we want to use an all-ones event
         avg_event = pd.DataFrame(np.ones((1, 78)))
         avg_event.columns = avg_event.columns.astype(str)
 
@@ -173,6 +218,7 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     events = []
     features = []
 
+    # Iterate over trajectories and compute Shapley values
     for i, traj in enumerate(trajectories):
         print(f"Explaining Trajectory {i + 1}/{num_trajs}")
         num_events = traj.shape[1]  # includes the pruned event slot
@@ -194,38 +240,34 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
         feature_array = np.zeros(num_features)
 
         # === Handle events ===
-        for _, row in event_data.iterrows():
-            label = row["Feature"]
-            if label == "Pruned Features" or label == "Pruned Events":
+        for _, row in event_data.iterrows():  # iterate over rows in the DataFrame
+            label = row["Feature"]  # get the label from the "Feature" column
+            if label == "Pruned Features" or label == "Pruned Events":  # check for special labels
                 idx = 0
-                #array_idx = num_events - 1  # last column
             else:
-                match = re.search(r"Event (-?\d+)", label)
+                match = re.search(r"Event (-?\d+)", label)  # match against the Event regex pattern
                 if match:
-                    idx = int(match.group(1))
-                    #array_idx = idx if idx >= 0 else num_events + idx
-                else:
+                    idx = int(match.group(1))  # extract the event index from the label
+                else:  # if the label does not match the expected format
                     print(f"Unrecognized event label: {label}")
-                    idx = 0
                     continue
 
-            if 0 != idx:
-                event_array[idx] = abs(row["Shapley Value"])
-            elif label == "Pruned Features" or label == "Pruned Events":
+            if 0 != idx:  # if idx is not the pruned event slot
+                event_array[idx] = abs(row["Shapley Value"])  # store the absolute Shapley value
+            elif label == "Pruned Features" or label == "Pruned Events":  # if it's a pruned event
                 print(f"Invalid event index: {idx} for label: {label}")
 
         # === Handle features ===
-        for _, row in feature_data.iterrows():
-            label = row["Feature"]
-            if label == "Pruned Features" or label == "Pruned Events":
-                idx = -1
-                #array_idx = num_events - 1  # last column
+        for _, row in feature_data.iterrows():  # iterate over rows in the DataFrame
+            label = row["Feature"]  # get the label from the "Feature" column
+            if label == "Pruned Features" or label == "Pruned Events":  # check for special labels
+                idx = -1  # use -1 for pruned features/events
             else:
                 idx = int(label)
 
-            if -1 != idx:
-                feature_array[idx] = abs(row["Shapley Value"])
-            elif label == "Pruned Features" or label == "Pruned Events":
+            if -1 != idx:  # if idx is not the pruned feature slot
+                feature_array[idx] = abs(row["Shapley Value"])  # store the absolute Shapley value
+            elif label == "Pruned Features" or label == "Pruned Events":  # if it's a pruned feature
                 print(f"Invalid feature index: {idx} for label: {label}")
 
         events.append(event_array)
@@ -236,41 +278,35 @@ def explain(learner: Learner, num_trajs: int = 3, last_k: int = 30, top_k: int =
     features = np.array(features)  # shape: (num_trajs, num_features)
 
     # Save events
-    events_save_path = f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.npy"
+    events_save_path = f"final_results/explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.npy"
     np.save(events_save_path, events)
 
     # Save features_top
-    features_save_path = f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.npz"
+    features_save_path = f"final_results/explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.npz"
     np.savez(features_save_path,
              features=features,
              plot_features=plot_features)
 
-    """
-    data_list = []
-    for i, traj in enumerate(trajectories):
-        df = pd.DataFrame(traj.squeeze(0))  # Shape (100, 78)
-        df["episode_id"] = i  # Assign unique ID for each trajectory
-        data_list.append(df)
-    df_all = pd.concat(data_list, ignore_index=True)  # Merge into one DataFrame
-
-    prun_indexes, event_data, feat_data = calc_global_explanations(
-        f=model_wrapper,
-        data=df_all,
-        pruning_dict=pruning_dict,
-        event_dict=event_dict,
-        feature_dict=feature_dict,
-        baseline=avg_event,
-        entity_col="episode_id",
-    )
-    """
-
-    plot_event_multi(events, last_k, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.png")
-
-    plot_feature_multi(features, plot_features, top_k, save_path=f"explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
-
+    # Plotting
+    plot_event_multi(events, last_k, save_path=f"final_results/explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_events_last{last_k}_traj{num_trajs}.png")
+    plot_feature_multi(features, plot_features, top_k, save_path=f"final_results/explainability/{learner.FLAGS.config_env.env_type}_{model}_{tag}_features_top{top_k}_traj{num_trajs}.png")
     plt.show()
 
+
 def plot_pruning(pruning_data, cutoff_t):
+    """
+    Visualizes which events were pruned based on their Shapley value contributions.
+
+    Args:
+        pruning_data (pd.DataFrame or list of dict): Output from the TimeSHAP pruning step,
+            containing Shapley value contributions grouped by event index.
+        cutoff_t (float): The cutoff threshold (typically determined via a pruning tolerance)
+            used to distinguish significant from negligible contributions.
+
+    Returns:
+        None. Displays and saves the plot as 'pruning_contribution.png'.
+    """
+
     # Convert to DataFrame
     df = pd.DataFrame(pruning_data)
 
@@ -281,9 +317,11 @@ def plot_pruning(pruning_data, cutoff_t):
     fig, ax = plt.subplots(figsize=(8, 5))
     width = 0.4
 
+    # Plot bars for greater and lesser t
     ax.bar(greater_t["t (event index)"] - width / 2, greater_t["Shapley Value"], width=width, label="> t", color='blue', alpha=0.6)
     ax.bar(lesser_t["t (event index)"] + width / 2, lesser_t["Shapley Value"], width=width, label="≤ t", color='orange', alpha=0.6)
 
+    # Add horizontal line for cutoff
     plt.axhline(y=cutoff_t, color='red', linestyle='--', label=f'Cutoff (t={cutoff_t})')
 
     plt.xlabel("Event Index (t)")
@@ -293,45 +331,29 @@ def plot_pruning(pruning_data, cutoff_t):
     plt.savefig('pruning_contribution.png')
 
 
-def plot_event_single(event_data, sort=False):
-    if sort:
-        # Sort features by absolute Shapley Value (most important first)
-        event_data_sorted = event_data.sort_values(by="Shapley Value", key=abs, ascending=True)
-    else:
-        event_data_sorted = event_data
-
-    plt.figure(figsize=(10, 6))
-
-    sns.barplot(
-        x="Shapley Value",
-        y="Feature",
-        data=event_data_sorted,
-        palette="coolwarm"
-    )
-
-    # Add title and labels
-    plt.title("Feature Importance based on Shapley Values")
-    plt.xlabel("Shapley Value")
-    plt.ylabel("Feature")
-
-    # Add a vertical line at zero for reference
-    plt.axvline(x=0, color="black", linestyle="--", alpha=0.7)
-    plt.savefig('event_importance.png')
-
-
 def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_event_plot.png"):
-    if events is None:
+    """
+    Plots event-wise Shapley values for multiple trajectories.
+
+    Args:
+    events (np.ndarray, optional): A NumPy array of shape (num_trajectories, num_events),
+        where each row contains the Shapley values for one trajectory. If None, `load_path`
+        must be provided to load the data from file.
+    last_k (int, optional): Number of most recent events to include in the plot. Defaults to 30.
+    load_path (str, optional): Path to a `.npy` file containing precomputed event-level Shapley
+        values. Only used if `events` is None.
+    save_path (str, optional): File path to save the generated plot. Defaults to "shapley_event_plot.png".
+
+    Returns:
+        None. The function saves the plot to `save_path` and optionally displays it.
+    """
+    if events is None:  # if events are not provided, load from file
         assert load_path is not None, "Either events or load_path must be provided."
         events = np.load(load_path)
         save_path = load_path.replace(".npy", ".png")
 
     events = np.array(events)
     events = events[:, -last_k:]  # keep all trajs, last k timesteps
-
-    # Scaling factor to shift event 0 mean to 0.5
-    #scale = 0.5 / np.max(mean_vals) if np.max(mean_vals) != 0 else 1.0
-    #events = events * scale
-
 
     # Min-max scaling
     event_min = np.min(events)
@@ -352,7 +374,7 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
     for i, x in enumerate(x_labels):
         y_vals = events[:, i]
         plt.scatter(
-            [x] * len(y_vals), y_vals,
+            [x] * len(y_vals), y_vals,  # x is the event index, y is the Shapley value
             color='mediumturquoise',
             alpha=0.4,
             s=100,
@@ -387,7 +409,26 @@ def plot_event_multi(events=None, last_k=30, load_path=None, save_path="shapley_
 
 
 def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=None, save_path="shapley_feature_plot.png"):
-    if features is None:
+
+    """
+    Plots feature-wise Shapley values for multiple trajectories.
+
+    Args:
+        features (np.ndarray, optional): A NumPy array of shape (num_trajectories, num_features),
+            where each row contains the feature-level Shapley values for one trajectory. If None,
+            `load_path` must be provided to load the data from file.
+        plot_features (dict, optional): A dictionary mapping feature indices (as strings) to
+            human-readable labels used for plotting.
+        top_k (int, optional): Number of top features (by average importance) to display. Defaults to 10.
+        load_path (str, optional): Path to a `.npz` file containing precomputed feature-level Shapley
+            values. Only used if `features` is None.
+        save_path (str, optional): File path to save the generated plot. Defaults to "shapley_feature_plot.png".
+
+    Returns:
+        None. The function saves the plot to `save_path` and optionally displays it.
+    """
+
+    if features is None:  # if features are not provided, load from file
         assert load_path is not None, "Either events or load_path must be provided."
         loaded = np.load(load_path, allow_pickle=True)
         features = loaded['features']
@@ -463,150 +504,14 @@ def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=No
     plt.show()
 
 
-def plot_infiltration_timing(infiltrations, save_path="infiltration_timing_plot.png"):
-    """
-    infiltrations: List of lists (episodes × timesteps) containing lists of newly infiltrated nodes
-    """
-    # Flatten into a list of (episode, timestep) where infiltration happened
-    infiltration_times = []
-    for ep_idx, episode in enumerate(infiltrations):
-        for t_idx, newly_infiltrated in enumerate(episode):
-            if newly_infiltrated:  # if list is not empty
-                infiltration_times.extend([t_idx] * len(newly_infiltrated))
-
-    if len(infiltration_times) == 0:
-        print("No infiltrations recorded.")
-        return
-
-    infiltration_times = np.array(infiltration_times)
-
-    infiltration_counts = np.zeros(100, dtype=int)
-    for t in infiltration_times:
-        infiltration_counts[t] += 1
-
-    # Plotting
-    fig, ax = plt.subplots(figsize=(16, 6))
-    bars = ax.bar(np.arange(50), infiltration_counts[50:], color='mediumturquoise', edgecolor='black', alpha=0.7)
-
-    # Set custom x-ticks
-    ax.set_xticks(np.arange(0, 50))  # 50 bars
-    ax.set_xticklabels([str(-i) for i in range(49, -1, -1)])  # From -49 to 0
-
-    # Axis labels
-    ax.set_xlabel("Timesteps (relative to end)", fontsize=12)
-    ax.set_ylabel("Number of Infiltrations", fontsize=12)
-    ax.set_title("Infiltrations in Last 50 Timesteps", fontsize=14, fontweight='bold')
-
-    # Grid styling
-    ax.grid(axis='y', linestyle='--', alpha=0.5)
-    ax.grid(axis='x', visible=False)
-
-    plt.tight_layout()
-    plt.show()
-
-
-def plot_infiltration_nodes(infiltrations, save_path=""):
-    node_count = np.zeros(15, dtype=int)
-    for episode in infiltrations:
-        for newly_infiltrated in episode:
-            for node in newly_infiltrated:
-                node_count[node] += 1
-
-    num_nodes = len(node_count)
-    node_ids = np.arange(num_nodes)
-
-    # Sort by infiltration count (ascending for "most at bottom")
-    sort_idx = np.argsort(-node_count)
-    sorted_counts = node_count[sort_idx]
-    sorted_labels = [f"Node {i}" for i in sort_idx]
-
-    # Plot
-    plt.figure(figsize=(10, max(6, num_nodes * 0.4)))
-    y_positions = np.arange(num_nodes)
-
-    plt.barh(y_positions, sorted_counts, color='mediumturquoise', edgecolor='black', alpha=0.7)
-    plt.yticks(y_positions, sorted_labels)
-    plt.xlabel("Number of Infiltrations", fontsize=12)
-    plt.ylabel("Node", fontsize=12)
-    plt.title("Node-wise Infiltration Frequency", fontsize=14, fontweight='bold')
-    plt.grid(axis='x', linestyle='--', alpha=0.5)
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.show()
-
-
-def plot_variance_timesteps(trajs):
-    # Stack into (num_trajs, 100, 15)
-    stacked = np.concatenate(trajs, axis=0)  # shape: (num_trajs, 100, 15)
-
-    # Compute variance across trajectories: axis=0
-    var_across_trajs = np.var(stacked, axis=0)  # shape: (100, 15)
-
-    # Average variance over the 15 features (nodes) per timestep
-    mean_variance_per_timestep = np.mean(var_across_trajs, axis=1)  # shape: (100,)
-
-    # Bar plot
-    plt.figure(figsize=(16, 5))
-    plt.bar(np.arange(50), mean_variance_per_timestep[50:], color='mediumturquoise', edgecolor='black', alpha=0.7)
-
-    plt.xlabel("Timestep (relative to end)", fontsize=12)
-    plt.ylabel("Avg Variance Across Nodes", fontsize=12)
-    plt.title("Observation Variance Across Trajectories (Last 50 Timesteps)", fontsize=14, fontweight='bold')
-    plt.grid(axis='y', linestyle='--', alpha=0.5)
-    plt.tight_layout()
-    #plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.show()
-
-
-def plot_restoration_occured(restorations):
-    # Flatten into a list of (episode, timestep) where infiltration happened
-    restoration_times = []
-    for ep_idx, episode in enumerate(restorations):
-        for t_idx, restored in enumerate(episode):
-            if restored:  # if list is not empty
-                restoration_times.extend([t_idx])
-
-    if len(restoration_times) == 0:
-        print("No infiltrations recorded.")
-        return
-
-    infiltration_times = np.array(restoration_times)
-
-    restoration_counts = np.zeros(100, dtype=int)
-    for t in restoration_times:
-        restoration_counts[t] += 1
-
-    # Plotting
-    fig, ax = plt.subplots(figsize=(16, 6))
-    bars = ax.bar(np.arange(50), restoration_counts[50:], color='mediumturquoise', edgecolor='black', alpha=0.7)
-
-    # Set custom x-ticks
-    ax.set_xticks(np.arange(0, 50))  # 50 bars
-    ax.set_xticklabels([str(-i) for i in range(49, -1, -1)])  # From -49 to 0
-
-    # Axis labels
-    ax.set_xlabel("Timesteps (relative to end)", fontsize=12)
-    ax.set_ylabel("Number of Restorations", fontsize=12)
-    ax.set_title("Restorations in Last 50 Timesteps", fontsize=14, fontweight='bold')
-    ax.set_ylim(bottom=50)
-    # Grid styling
-    ax.grid(axis='y', linestyle='--', alpha=0.5)
-    ax.grid(axis='x', visible=False)
-
-    plt.tight_layout()
-    plt.show()
-
-
 if __name__ == "__main__":
+    # Initialize the learner with flags
     learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
+
+    # Generate and explain trajectories
     explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test_ones")
 
-    #trajs, infiltrations, restorations = generate_trajs(learner, num_trajs=100)
-    #plot_infiltration_nodes(infiltrations, save_path="infiltration_timing_plot.png")
-    #plot_infiltration_timing(infiltrations)
-    #plot_variance_timesteps(trajs)
-    #plot_restoration_occured(restorations)
-
+    # Uncomment to plot events and features from saved files
     #plot_event_multi(load_path='explainability/network-defender_mlp_final-avg_events_last50_traj100.npy', last_k=50)
     #plot_feature_multi(load_path='explainability/network-defender_lru_final_features_top10_traj100.npz', top_k=15)
 

@@ -7,6 +7,19 @@ import time
 
 
 def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
+    """
+        Evaluates the performance of a given learner over a specified number of episodes.
+
+        Args:
+            learner (Learner): The learner object to be evaluated.
+            save_dir (str): Directory where evaluation results will be saved.
+            episodes (int, optional): Number of episodes to evaluate. Defaults to 10.
+
+        Returns:
+            tuple: A tuple containing:
+                - returns_per_episode (list): List of returns for each episode.
+                - infos (dict): Dictionary containing additional evaluation information.
+        """
 
     returns_per_episode, success_rate, total_steps, trajs, infos = learner.evaluate(episodes=episodes)
     print('Evaluation Completed')
@@ -43,17 +56,43 @@ def evaluate(learner: Learner, save_dir: str, episodes: int = 10):
     return returns_per_episode, infos
 
 
-if __name__ == "__main__":
-    dir = 'logs_results/mini-cage/final/standard/mlp'
+def evaluation_pipe(dir, episodes, tag):
+    """
+    Executes an evaluation pipeline for agents stored in subdirectories of a given directory.
 
-    episodes = 200
+    Args:
+        dir (str): The directory containing subfolders with saved agent models.
+        episodes (int): The number of episodes to evaluate each agent.
+        tag (str): A tag to differentiate evaluation runs, used in the output file name.
+
+    Raises:
+        ValueError: If `dir` is not a valid directory.
+        ValueError: If `episodes` is not a positive integer.
+        ValueError: If `tag` is not a non-empty string.
+
+    Returns:
+        None
+    """
+
+    # check if dir is a valid directory
+    if not os.path.isdir(dir):
+        raise ValueError(f"The directory {dir} does not exist or is not a valid directory.")
+
+    # check if episodes is a valid integer
+    if not isinstance(episodes, int) or episodes <= 0:
+        raise ValueError("Episodes must be a positive integer.")
+
+    # check if tag is a valid string
+    if not isinstance(tag, str) or not tag:
+        raise ValueError("Tag must be a non-empty string.")
+
+    # Initialize lists to store results
     all_rewards = []
     all_infiltrations = []
     all_restorations = []
     all_times = []
 
     agent = None
-
 
     # Iterate over all subfolders in save_dir
     for subfolder in os.listdir(dir):
@@ -99,7 +138,7 @@ if __name__ == "__main__":
         output_lines.append("\n")
     output_lines.append(f"Time taken for 100 eval episodes: {np.round(np.mean(all_times)/episodes*100, 2)} seconds\n")
 
-    filename = f"eval_mac_{episodes}_episodes.txt"
+    filename = f"eval_{tag}_{episodes}_episodes.txt"
     file_path = os.path.join(dir, filename)
     with open(file_path, 'w') as file:
         file.writelines(output_lines)
@@ -107,3 +146,11 @@ if __name__ == "__main__":
     print("\n------------------------*------------------------")
     print(f"Mean reward over all agents: {np.mean([np.mean(rewards) for rewards in all_rewards])}")
     print("------------------------*------------------------")
+
+
+if __name__ == '__main__':
+    dir = 'logs_results/mini-cage/final/standard/mlp'  # Folder than contains the subfolders with the seeds
+    episodes = 200  # Number of episodes to evaluate each seed
+    tag = 'v1'  # Tag for the evaluation, can be used to differentiate between different evaluation runs
+
+    evaluation_pipe(dir=dir, episodes=episodes, tag=tag)

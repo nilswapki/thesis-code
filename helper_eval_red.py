@@ -1,3 +1,8 @@
+"""
+Helper script to load a second existing agent (for adversarial evaluation)
+with flags from a pkl file and initialize the learner with those flags.
+"""
+
 import os
 import pickle
 from absl import app, flags

@@ -1,3 +1,7 @@
+"""
+Helper script to load an existing agent with flags from a pkl file and initialize the learner with those flags.
+"""
+
 import os
 import pickle
 from absl import app, flags
