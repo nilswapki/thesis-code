@@ -49,7 +49,7 @@ class SimplifiedCAGEWrapper(gym.Env):
 
         # Reset the environment
         self.steps_taken = 0
-        state, info = self.env.reset()
+        state, info = self.env.reset(seed=seed)
         return np.array(state['Blue']).reshape(-1, 1), info
         #return {'state': state, 'info': info}, {}
 
@@ -114,5 +114,5 @@ class SimplifiedCAGEWrapper(gym.Env):
             self.observation_space.seed(seed)
 
     def eval(self):
-        # TODO: Add evaluation-specific logic here if needed
+        # Add evaluation-specific logic here if needed
         pass

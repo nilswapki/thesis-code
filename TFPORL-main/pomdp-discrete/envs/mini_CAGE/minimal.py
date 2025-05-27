@@ -917,6 +917,7 @@ class SimplifiedCAGE(gym.Env):
         # reset all the parameters
         self.reset()
 
+
     def _set_init(
         self, num_envs, num_nodes, decoys=None, impacted=None, 
         state=None, current_processes=None, detection=None):
@@ -1004,8 +1005,9 @@ class SimplifiedCAGE(gym.Env):
         return info
 
 
-    def reset(self, agent_name=None):
-
+    def reset(self, agent_name=None, seed=None):
+        if seed is not None:
+            np.random.seed(seed)
         # get the red and blue observation
         state = self._set_init(
             num_envs=self.num_envs, 
