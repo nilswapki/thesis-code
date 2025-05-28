@@ -149,7 +149,7 @@ def evaluation_pipe(dir, episodes, tag):
 
 
 if __name__ == '__main__':
-    dir = 'logs_results/mini-cage/final/standard/mlp'  # Folder than contains the subfolders with the seeds
+    dir = 'final_results/mini-cage/final/mlp'  # Folder than contains the subfolders with the seeds
     episodes = 200  # Number of episodes to evaluate each seed
     tag = 'v1'  # Tag for the evaluation, can be used to differentiate between different evaluation runs
 

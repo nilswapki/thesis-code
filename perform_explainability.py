@@ -506,10 +506,10 @@ def plot_feature_multi(features=None, plot_features=None, top_k=10, load_path=No
 
 if __name__ == "__main__":
     # Initialize the learner with flags
-    learner = initialize_learner_with_flags(save_dir='logs_results/mini-cage/final/standard/lstm/seed-1')
+    learner = initialize_learner_with_flags(save_dir='final_results/mini-cage/final/lstm/seed-1')
 
     # Generate and explain trajectories
-    explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test_ones")
+    explain(learner, num_trajs=5, last_k=50, top_k=15, model="lstm", tag="test")
 
     # Uncomment to plot events and features from saved files
     #plot_event_multi(load_path='explainability/network-defender_mlp_final-avg_events_last50_traj100.npy', last_k=50)

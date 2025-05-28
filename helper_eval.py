@@ -136,8 +136,13 @@ def initialize_learner_with_flags(save_dir=None):
         model_path = max(file_paths, key=os.path.getctime)
     else:
         raise ValueError("No valid agent_*.pt files found in the save directory.")
-    
-    learner.load_model(model_path)
+    try:
+        learner.load_model(model_path)
+    except RuntimeError as e:
+        if "loading state_dict" in str(e):
+            raise Exception("Environment specified in helper_eval.py does not match the environment used during training. Adjust this in line 25.")
+        else:
+            raise e
     print(f"Model loaded successfully from {model_path}")
 
     return learner
