@@ -5,19 +5,14 @@ with flags from a pkl file and initialize the learner with those flags.
 
 import os
 import pickle
-from absl import app, flags
+from absl import flags
 from ml_collections import config_flags
 from policies.learner import Learner
 from envs.make_env import make_env
-import re
 from torchkit.pytorch_utils import set_gpu_mode
 import torch
 import sys
 from utils import system
-
-if torch.cuda.is_available():  # if running on work computer
-    os.chdir('/mnt/thesis-code/TFPORL-main/pomdp-discrete')
-    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 FLAGS = flags.FLAGS
 
