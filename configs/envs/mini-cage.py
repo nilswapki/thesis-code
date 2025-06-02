@@ -26,7 +26,7 @@ def get_config():
     config.terminal_fn = finite_horizon_terminal
 
     config.eval_interval = 100
-    config.save_interval = 500
+    config.save_interval = 1000
     config.eval_episodes = 6
 
     # [1, 2, 5, 10, 30, 50, 100, 300, 500, 1000]
